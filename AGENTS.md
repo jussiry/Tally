@@ -6,8 +6,9 @@ Shared instructions for any coding agent. Claude-specific notes live in CLAUDE.m
 > message and wait. Solo project: no pull requests. When asked, the words mean:
 >
 > - **commit** — add + commit to the current branch.
-> - **merge** — merge the current worktree branch into `main` (when inside worktree).
->   First bring `main` up to date (`git pull --ff-only` in the main checkout).
+> - **merge** — commit and merge the current worktree branch into `main` (when inside worktree).
+>   First bring `main` up to date (`git pull --ff-only` in the main checkout); afterwards
+>   fast-forward the worktree branch to `main` (`git merge --ff-only main`) and keep working on it.
 > - **deploy** — commit, merge into `main` (unless already in main), then push `main`.
 > - **push** — If in worktree, first ask whether the worktree branch should really be pushed.
 

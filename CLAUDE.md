@@ -2,8 +2,9 @@
 
 ## After a merge or deploy
 
-Once a worktree branch has landed in `main`, archive this session with `archive_session`
-unless instructed otherwise.
+Don't archive the session. Fast-forward this worktree's branch to the new `main`
+(`git merge --ff-only main`) and keep working on it, so the next change starts
+from everything other sessions have merged. Archive only when told the thread is done.
 
 ## Running and checking the app
 
