@@ -12,6 +12,7 @@ o  still in planning phase, don't implemet yet
 DO NOT CONTINUE BELOW THIS AUTOMATICALLY
 
 FEATURES
+
 Add inactivate friend button.
 - defaulting / debt forgiveness
 - explain possible concequences
@@ -22,7 +23,8 @@ Inactive frient
   * no notification to other?
   * as long as either retains inactive state, reactivation can be suggested
 
-
+Make it possible to add more information inside a transaction:
+- besides current note (visible text) add option for list of files, could be images, documents, etc. The UI can show contents of those files when applicable. Transaction in UI would become openable, where by clicking it would should show all transaction details besides just the note.
 
 
 BUGS:
