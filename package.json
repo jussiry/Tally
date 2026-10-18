@@ -15,7 +15,8 @@
     "peer": "node tests/peer-helper/run.cjs",
     "smoke": "node scripts/smoke-test.cjs",
     "test:nip44": "node tests/nip44/run.mjs",
-    "test:ledger-validation": "node tests/ledger-validation/run.mjs"
+    "test:ledger-validation": "node tests/ledger-validation/run.mjs",
+    "test:push-optin": "node tests/push-optin/run.cjs"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

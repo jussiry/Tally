@@ -347,6 +347,8 @@ const bindNotifySection = async (root) => {
 
       if (result === "denied") {
         setHint("Notifications are blocked in your browser settings.");
+      } else if (result === "error") {
+        setHint("This browser couldn't register for notifications. Try another browser, or check that push messaging isn't turned off in its settings.");
       } else {
         setHint("");
       }

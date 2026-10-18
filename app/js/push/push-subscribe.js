@@ -57,7 +57,10 @@ const fetchVapidPublicKey = async () => {
 };
 
 // Request permission (if needed), create/reuse a subscription, and register it
-// with the relays. Returns the resulting push state string.
+// with the relays. Returns the resulting push state string, or "error" when the
+// browser couldn't create a subscription — e.g. Chrome's "Registration failed -
+// push service error" when it can't reach its push service (Brave with Google
+// push disabled, Chromium builds without Google services, a blocking network).
 export const enablePush = async () => {
   if (!isPushSupported()) return "unsupported";
 
@@ -69,18 +72,22 @@ export const enablePush = async () => {
     return permission === "denied" ? "denied" : "disabled";
   }
 
-  const registration = await navigator.serviceWorker.ready;
-  let subscription = await registration.pushManager.getSubscription();
-  if (!subscription) {
-    const vapidKey = await fetchVapidPublicKey();
-    subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidKey),
-    });
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      const vapidKey = await fetchVapidPublicKey();
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey),
+      });
+    }
+    getRealtimeClient()?.setPushSubscription(subscription.toJSON());
+    return "enabled";
+  } catch (error) {
+    console.warn("Push subscription failed:", error);
+    return "error";
   }
-
-  getRealtimeClient()?.setPushSubscription(subscription.toJSON());
-  return "enabled";
 };
 
 // Tear down this device's subscription and tell the relays to forget it.
