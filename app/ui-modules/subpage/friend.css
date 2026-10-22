@@ -16,7 +16,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  margin: 10px 20px 10px;
+  margin: 10px 0;
 
 }
 
@@ -155,7 +155,7 @@
 }
 
 .friend-card {
-  margin: 12px 20px 0;
+  margin: 12px 0 0;
   padding: 20px 18px;
   overflow: visible;
 }
@@ -178,7 +178,7 @@
 
 .actionable-box {
   --surface-radius: 18px;
-  margin: 10px 20px 0;
+  margin: 10px 0 0;
   padding: 16px 18px;
   border: 2px solid var(--accent-glow);
   background: var(--accent-faint);
@@ -245,8 +245,8 @@
 }
 
 .friend-danger-button {
-  margin: 14px 20px 0;
-  width: calc(100% - 40px);
+  margin: 14px 0 0;
+  width: 100%;
 }
 
 .friend-relay-list {

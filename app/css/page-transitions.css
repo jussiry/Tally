@@ -23,10 +23,15 @@
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   transform: translateX(0%);
+  /* The page's side gutter lives here, once, so page and subpage content
+     never sets its own horizontal margin — a new page gets it for free. */
+  padding-inline: var(--page-gutter);
   padding-bottom: calc(105px + env(safe-area-inset-bottom, 0px));
 }
 
+/* The welcome screen pads itself and fills the viewport edge to edge. */
 body.is-welcome .page-stack > .page-view {
+  padding-inline: 0;
   padding-bottom: 0;
 }
 

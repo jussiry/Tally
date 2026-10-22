@@ -26,9 +26,10 @@ by default, as they were before per-event choice existed:
 - a friend requests money (`payment_request`)
 - a friend sends a friend request (`friend_request`)
 
-The rest (payment request answered/cancelled, friend request accepted/rejected,
-trust-limit changes, name changes) are off by default. The catalogue and
-defaults are `OS_NOTIFIABLE_EVENTS` in `app/js/notify/notification-policy.js`.
+The rest are off by default; related types share one setting (a payment
+request answered or cancelled → "Payment request response"; a friend request
+accepted or rejected → "Friend request response"). The settings, their types
+and defaults are `OS_NOTIFY_SETTINGS` in `app/js/notify/notification-policy.js`.
 Transport traffic (sync, receipts) and `notification_prefs` itself never notify.
 
 ---
@@ -46,7 +47,7 @@ and centralizes the layer-4 routing decision in
 | 3 | Actionable boxes | friend page (derived from app state)    | persists while the prompting state exists   |
 | 4 | OS notifications | Web Push → service worker               | reaches the user when the app is **closed** |
 
-Adding a new OS-notifiable event is an `OS_NOTIFIABLE_EVENTS` entry plus a
+Adding a new OS-notifiable event is a type in `OS_NOTIFY_SETTINGS` plus a
 `HINT_BUILDERS` function in the policy module.
 
 When the app is open but not in view (another tab in front, minimised), the

@@ -1,5 +1,5 @@
 .send-card {
-  margin: 12px 20px 0;
+  margin: 12px 0 0;
   padding: 20px 18px;
 }
 
@@ -132,7 +132,7 @@
 
 .explainer-card {
   --surface-radius: 18px;
-  margin: 16px 20px 0;
+  margin: 16px 0 0;
   padding: 16px 18px;
   color: var(--muted);
   font-size: 13px;

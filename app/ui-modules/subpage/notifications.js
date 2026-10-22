@@ -16,7 +16,7 @@ not edited.
 import { initCheckToggle } from "../components/check-toggle.js";
 import { setOsNotifyTypes } from "../../js/commands/notification-prefs.js";
 import {
-  OS_NOTIFIABLE_EVENTS,
+  OS_NOTIFY_SETTINGS,
   getDefaultOsNotifyTypes,
   getOsNotifyTypes,
 } from "../../js/notify/notification-policy.js";
@@ -64,29 +64,31 @@ export const bindNotificationSettings = (root, data) => {
   if (titleEl) titleEl.textContent = "Notifications";
   if (!listEl || !templateEl) return;
 
-  // The page's own copy of the choice; each change saves the whole list.
+  // The page's own copy of the choice (message types); each change saves the
+  // whole list. A setting switches all of its types together and shows as on
+  // only when all of them are.
   let enabled = new Set(getOsNotifyTypes(data?.ledger, data?.you?.id));
+  const isSettingOn = (setting) => setting.types.every((type) => enabled.has(type));
   const toggles = new Map();
   let isSyncing = true;
 
   const save = () => setOsNotifyTypes(Array.from(enabled));
 
-  OS_NOTIFIABLE_EVENTS.forEach((event) => {
+  OS_NOTIFY_SETTINGS.forEach((setting) => {
     const row = templateEl.content.firstElementChild.cloneNode(true);
     const labelEl = row.querySelector('[data-bind="label"]');
     const toggleEl = row.querySelector('[data-bind="toggle"]');
-    if (labelEl) labelEl.textContent = event.label;
-    toggleEl?.setAttribute("aria-label", `Notify me: ${event.label}`);
+    if (labelEl) labelEl.textContent = setting.label;
+    toggleEl?.setAttribute("aria-label", `Notify me: ${setting.label}`);
     const toggle = initCheckToggle(toggleEl, {
-      checked: enabled.has(event.type),
+      checked: isSettingOn(setting),
       onChange: (isChecked) => {
         if (isSyncing) return;
-        if (isChecked) enabled.add(event.type);
-        else enabled.delete(event.type);
+        setting.types.forEach((type) => (isChecked ? enabled.add(type) : enabled.delete(type)));
         void save();
       },
     });
-    toggles.set(event.type, toggle);
+    toggles.set(setting, toggle);
     listEl.appendChild(row);
   });
   isSyncing = false;
@@ -94,7 +96,7 @@ export const bindNotificationSettings = (root, data) => {
   resetEl?.addEventListener("click", () => {
     enabled = new Set(getDefaultOsNotifyTypes());
     isSyncing = true;
-    toggles.forEach((toggle, type) => toggle.setChecked(enabled.has(type)));
+    toggles.forEach((toggle, setting) => toggle.setChecked(isSettingOn(setting)));
     isSyncing = false;
     void save();
   });

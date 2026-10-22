@@ -10,7 +10,7 @@ different audience, lifetime, and trigger:
      highlighted there.
 
   2. In-app toasts (js/ui/notifications.js)
-     Every inbound event in OS_NOTIFIABLE_EVENTS, shown while the app is open.
+     Every inbound event in OS_NOTIFY_SETTINGS, shown while the app is open.
      Transient acknowledgement that the UI just changed.
 
   3. Actionable boxes (the friend page, derived from app state)
@@ -21,8 +21,8 @@ different audience, lifetime, and trigger:
   4. OS notifications (Web Push -> service worker -> showNotification, or a
      local showNotification while the app is open but hidden)
      The only layer that reaches the user when the app is closed. Each event
-     type is opt-in per user (Settings → Notifications); OS_NOTIFIABLE_EVENTS
-     lists them with their defaults.
+     type is opt-in per user (Settings → Notifications); OS_NOTIFY_SETTINGS
+     lists them, grouped into settings, with their defaults.
 
 Per-type choice and delivery. Browsers forbid silent pushes (every push must
 show a notification), so the recipient can't filter in its service worker.
@@ -36,7 +36,7 @@ See TIPs/TIP-005-os-notifications.md.
 
 Keeping this mapping separate from the state-mutation handlers (peer/handlers.js)
 means the "what shows where" question has one answer, and adding a new
-OS-notifiable event is an entry in OS_NOTIFIABLE_EVENTS plus a HINT_BUILDERS
+OS-notifiable event is a type in OS_NOTIFY_SETTINGS plus a HINT_BUILDERS
 function here.
 @category ui
 */
@@ -57,33 +57,40 @@ import {
 
 const APP_NAME = "Tally";
 
-// Every inbound event that shows an in-app toast, in settings-page order. The
-// three that were OS-notifiable before per-type choice existed stay on by
-// default; the rest are opt-in.
-export const OS_NOTIFIABLE_EVENTS = [
-  { type: PEER_MESSAGE_TYPE_TRANSACTION_CREATED, label: "Money received", defaultEnabled: true },
-  { type: PEER_MESSAGE_TYPE_PAYMENT_REQUEST, label: "Payment requested", defaultEnabled: true },
-  { type: PEER_MESSAGE_TYPE_FRIEND_REQUEST, label: "Friend request", defaultEnabled: true },
-  { type: PEER_MESSAGE_TYPE_PAYMENT_REQUEST_RESPONSE, label: "Payment request answered", defaultEnabled: false },
-  { type: PEER_MESSAGE_TYPE_PAYMENT_REQUEST_CANCEL, label: "Payment request cancelled", defaultEnabled: false },
-  { type: PEER_MESSAGE_TYPE_FRIEND_ACCEPT, label: "Friend request accepted", defaultEnabled: false },
-  { type: PEER_MESSAGE_TYPE_FRIEND_REJECT, label: "Friend request rejected", defaultEnabled: false },
-  { type: PEER_MESSAGE_TYPE_TRUST_LIMIT_SUGGESTION, label: "Trust limit changes", defaultEnabled: false },
-  { type: PEER_MESSAGE_TYPE_NAME_CHANGED, label: "Friend changed name", defaultEnabled: false },
+// Every inbound event that shows an in-app toast, as the settings the user
+// sees (settings-page order). A setting may cover several message types — e.g.
+// both answers to a payment request — and switches them together; the
+// published choice is still a plain list of types, so regrouping settings
+// never changes the wire format. The three settings that were OS-notifiable
+// before per-type choice existed stay on by default; the rest are opt-in.
+export const OS_NOTIFY_SETTINGS = [
+  { label: "Money received", types: [PEER_MESSAGE_TYPE_TRANSACTION_CREATED], defaultEnabled: true },
+  { label: "Payment requested", types: [PEER_MESSAGE_TYPE_PAYMENT_REQUEST], defaultEnabled: true },
+  { label: "Friend request", types: [PEER_MESSAGE_TYPE_FRIEND_REQUEST], defaultEnabled: true },
+  {
+    label: "Payment request response",
+    types: [PEER_MESSAGE_TYPE_PAYMENT_REQUEST_RESPONSE, PEER_MESSAGE_TYPE_PAYMENT_REQUEST_CANCEL],
+    defaultEnabled: false,
+  },
+  {
+    label: "Friend request response",
+    types: [PEER_MESSAGE_TYPE_FRIEND_ACCEPT, PEER_MESSAGE_TYPE_FRIEND_REJECT],
+    defaultEnabled: false,
+  },
+  { label: "Trust limit changes", types: [PEER_MESSAGE_TYPE_TRUST_LIMIT_SUGGESTION], defaultEnabled: false },
+  { label: "Friend changed name", types: [PEER_MESSAGE_TYPE_NAME_CHANGED], defaultEnabled: false },
 ];
 
-const KNOWN_TYPES = new Set(OS_NOTIFIABLE_EVENTS.map((event) => event.type));
+const ALL_TYPES = OS_NOTIFY_SETTINGS.flatMap((setting) => setting.types);
 
 export const getDefaultOsNotifyTypes = () =>
-  OS_NOTIFIABLE_EVENTS.filter((event) => event.defaultEnabled).map((event) => event.type);
+  OS_NOTIFY_SETTINGS.filter((setting) => setting.defaultEnabled).flatMap((setting) => setting.types);
 
 // Keep only known types, deduped, in catalogue order — so two lists with the
 // same members compare equal and unknown types from newer peers are ignored.
 export const normalizeOsNotifyTypes = (types) => {
   const wanted = new Set(Array.isArray(types) ? types : []);
-  return OS_NOTIFIABLE_EVENTS.map((event) => event.type).filter(
-    (type) => wanted.has(type) && KNOWN_TYPES.has(type)
-  );
+  return ALL_TYPES.filter((type) => wanted.has(type));
 };
 
 export const sameOsNotifyTypes = (a, b) =>
