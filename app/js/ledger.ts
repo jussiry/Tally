@@ -26,6 +26,7 @@ import { verifyTallyAuthorship } from "./peer/authorship.js";
 import {
   PEER_MESSAGE_TYPE_FRIEND_ACCEPT,
   PEER_MESSAGE_TYPE_FRIEND_REQUEST,
+  PEER_MESSAGE_TYPE_NOTIFICATION_PREFS,
   PEER_MESSAGE_TYPE_PAYMENT_REQUEST,
   PEER_MESSAGE_TYPE_PAYMENT_REQUEST_CANCEL,
   PEER_MESSAGE_TYPE_PAYMENT_REQUEST_RESPONSE,
@@ -258,6 +259,9 @@ const VALUE_RULES: Record<string, (payload: Record<string, unknown>) => boolean>
   [PEER_MESSAGE_TYPE_FRIEND_ACCEPT]: (p) => isAbsentOrNonNegativeAmount(p.trust_credit_limit_eur),
   [PEER_MESSAGE_TYPE_FRIEND_REQUEST]: (p) =>
     isAbsentOrNonNegativeAmount(p.suggested_credit_limit_eur),
+  // Not a money value, but readers trust the shape: a list of type names.
+  [PEER_MESSAGE_TYPE_NOTIFICATION_PREFS]: (p) =>
+    Array.isArray(p.enabled) && p.enabled.every((type) => typeof type === "string"),
 };
 
 export const hasValidLedgerValues = (

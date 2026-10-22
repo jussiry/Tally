@@ -15,6 +15,8 @@ import {
 } from "../../js/peer/status.js";
 import { isAnyRelayConnected } from "../../js/signaling/relay-status-registry.js";
 import { initInfiniteList } from "../../js/ui/infinite-list.js";
+import { getOsNotifyTypes } from "../../js/notify/notification-policy.js";
+import { PEER_MESSAGE_TYPE_NOTIFICATION_PREFS } from "../../js/peer/messages.js";
 
 const formatEur = (amount) => {
   const value = Number(amount);
@@ -28,65 +30,64 @@ const formatLedgerEntry = (entry, myId, namesById, context = {}) => {
   const isOutgoing = entry.from_user_id === myId;
   const peerId = isOutgoing ? entry.to_user_id : entry.from_user_id;
   const peerName = getPeerDisplayName(namesById, peerId);
-  const peerBold = `**${peerName}**`;
   const payload = entry.payload || {};
 
   switch (entry.type) {
     case "friend_request":
       return isOutgoing
-        ? `Friend request sent to ${peerBold}`
-        : `Friend request received from ${peerBold}`;
+        ? `Friend request sent to ${peerName}`
+        : `Friend request received from ${peerName}`;
     case "friend_accept":
       return isOutgoing
-        ? `You accepted ${peerBold} as a friend`
-        : `${peerBold} accepted your friend request`;
+        ? `You accepted ${peerName} as a friend`
+        : `${peerName} accepted your friend request`;
     case "friend_reject":
       return isOutgoing
-        ? `You rejected friend request from ${peerBold}`
-        : `${peerBold} rejected your friend request`;
+        ? `You rejected friend request from ${peerName}`
+        : `${peerName} rejected your friend request`;
     case "credit_limit_suggestion": {
       const limit = formatEur(payload.credit_limit_eur);
       return isOutgoing
-        ? `You suggested trust limit of ${limit} with ${peerBold}`
-        : `${peerBold} suggested trust limit of ${limit}`;
+        ? `You suggested trust limit of ${limit} with ${peerName}`
+        : `${peerName} suggested trust limit of ${limit}`;
     }
     case "transaction_created": {
       const amount = formatEur(payload.amount_eur);
       return isOutgoing
-        ? `You sent ${amount} to ${peerBold}`
-        : `${peerBold} sent ${amount} to you`;
+        ? `You sent ${amount} to ${peerName}`
+        : `${peerName} sent ${amount} to you`;
     }
     case "payment_request": {
       const amount = formatEur(payload.amount_eur);
       return isOutgoing
-        ? `You requested ${amount} from ${peerBold}`
-        : `${peerBold} requested ${amount} from you`;
+        ? `You requested ${amount} from ${peerName}`
+        : `${peerName} requested ${amount} from you`;
     }
     case "payment_request_response": {
       const accepted = payload.accepted === true;
       if (isOutgoing) {
         return accepted
-          ? `You accepted payment request from ${peerBold}`
-          : `You declined payment request from ${peerBold}`;
+          ? `You accepted payment request from ${peerName}`
+          : `You declined payment request from ${peerName}`;
       }
       return accepted
-        ? `${peerBold} accepted your payment request`
-        : `${peerBold} declined your payment request`;
+        ? `${peerName} accepted your payment request`
+        : `${peerName} declined your payment request`;
     }
     case "payment_request_cancel":
       return isOutgoing
-        ? `You cancelled your payment request to ${peerBold}`
-        : `${peerBold} cancelled their payment request`;
+        ? `You cancelled your payment request to ${peerName}`
+        : `${peerName} cancelled their payment request`;
     case "name_changed": {
       const newName = payload.name || "";
       if (isOutgoing) {
-        return `You changed your name to **${newName}**`;
+        return `You changed your name to ${newName}`;
       }
-      const subjectBold = context.previousName ? `**${context.previousName}**` : peerBold;
-      return `${subjectBold} changed name to **${newName}**`;
+      const subject = context.previousName || peerName;
+      return `${subject} changed name to ${newName}`;
     }
     default:
-      return `${entry.type} ${isOutgoing ? "→" : "←"} ${peerBold}`;
+      return `${entry.type} ${isOutgoing ? "→" : "←"} ${peerName}`;
   }
 };
 
@@ -120,7 +121,13 @@ export const bindLogs = (root, data) => {
     }
   });
 
-  const entries = Array.isArray(data.ledger) ? data.ledger : [];
+  const ledger = Array.isArray(data.ledger) ? data.ledger : [];
+  // Notification-preference entries are bookkeeping between clients, not
+  // something that happened; they'd only clutter the log.
+  const entries = ledger.filter((entry) => entry.type !== PEER_MESSAGE_TYPE_NOTIFICATION_PREFS);
+  // Inbound events of these types also reach the user as OS notifications
+  // (Settings → Notifications); their rows are highlighted.
+  const osNotifyTypes = new Set(getOsNotifyTypes(ledger, myId));
 
   // For each name_changed entry, find the previous name by scanning the ledger
   // chronologically. We track the last known name per user as we go so
@@ -156,6 +163,10 @@ export const bindLogs = (root, data) => {
             hour: "2-digit",
             minute: "2-digit",
           });
+    }
+    if (entry.to_user_id === myId && entry.from_user_id !== myId && osNotifyTypes.has(entry.type)) {
+      node.classList.add("log-item--os-notify");
+      node.title = "Also shown as an OS notification";
     }
     if (textEl) {
       textEl.innerHTML = formatMarkdownish(

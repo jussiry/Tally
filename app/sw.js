@@ -170,7 +170,10 @@ const resolveNotification = async (payload) => {
     const plaintext = await self.__tallyPushCrypto.decryptHint(hint, privateKeyHex, fromUserId);
     const parsed = JSON.parse(plaintext);
     if (parsed && typeof parsed.body === "string") {
-      return { title: parsed.title || APP_NAME, body: parsed.body };
+      // `tag` is the peer message id; a local notification for the same
+      // message (app open but hidden) uses it too, so they replace each other.
+      const tag = typeof parsed.tag === "string" ? parsed.tag : undefined;
+      return { title: parsed.title || APP_NAME, body: parsed.body, tag };
     }
   } catch {
     // Any failure → generic notification below.
@@ -188,9 +191,10 @@ self.addEventListener("push", (event) => {
 
   event.waitUntil(
     (async () => {
-      const { title, body } = await resolveNotification(payload);
+      const { title, body, tag } = await resolveNotification(payload);
       await self.registration.showNotification(title, {
         body,
+        ...(tag ? { tag } : {}),
         icon: "icons/icon-192.png",
         badge: "icons/icon-192.png",
         data: { url: "./" },

@@ -32,12 +32,14 @@ import {
 } from "../friends-helpers.js";
 import { formatCurrency } from "../ui/format.js";
 import { queuePeerMessage } from "./outbox.js";
+import { shareOsNotifyTypesWith } from "../notify/notification-prefs.js";
 import {
   PEER_MESSAGE_TYPE_TRUST_LIMIT_SUGGESTION,
   PEER_MESSAGE_TYPE_FRIEND_ACCEPT,
   PEER_MESSAGE_TYPE_FRIEND_REJECT,
   PEER_MESSAGE_TYPE_FRIEND_REQUEST,
   PEER_MESSAGE_TYPE_NAME_CHANGED,
+  PEER_MESSAGE_TYPE_NOTIFICATION_PREFS,
   PEER_MESSAGE_TYPE_PAYMENT_REQUEST,
   PEER_MESSAGE_TYPE_PAYMENT_REQUEST_RESPONSE,
   PEER_MESSAGE_TYPE_PAYMENT_REQUEST_CANCEL,
@@ -94,6 +96,7 @@ const applyInboundFriendRequest = async (state, entry) => {
         accepter_name: state.user.name,
       },
     });
+    await shareOsNotifyTypesWith(state, entry.from_user_id);
     return friendNotification(`${requesterName} is now your friend`, entry.from_user_id);
   }
 
@@ -128,7 +131,7 @@ const applyInboundFriendRequest = async (state, entry) => {
   return friendNotification(`Friend request from ${requesterName}`, entry.from_user_id);
 };
 
-const applyInboundFriendAccept = (state, entry) => {
+const applyInboundFriendAccept = async (state, entry) => {
   const accepterName =
     asTrimmedString(entry.payload?.accepter_name) || entry.from_user_id;
   let friend = getFriend(state, entry.from_user_id);
@@ -167,6 +170,7 @@ const applyInboundFriendAccept = (state, entry) => {
   if (wasAccepted) {
     return null;
   }
+  await shareOsNotifyTypesWith(state, entry.from_user_id);
   return friendNotification(`${accepterName} accepted your friend request`, entry.from_user_id);
 };
 
@@ -266,6 +270,18 @@ const applyInboundNameChanged = (state, entry) => {
   if (oldName === newName) return null;
   friend.pending_name_change = { oldName, newName };
   return friendNotification(`${oldName} changed their name to ${newName}`, entry.from_user_id);
+};
+
+// A friend's OS-notification choice changes no friend state either: it is read
+// from the ledger when building push hints (notification-policy.js). The entry
+// only needs vetting; the empty text keeps it out of the toasts.
+const applyInboundNotificationPrefs = (state, entry) => {
+  if (!Array.isArray(entry.payload?.enabled)) return null;
+  const friend = getFriend(state, entry.from_user_id);
+  if (!friend || !isPeerEligibleFriendshipStatus(friend.friendship_status)) {
+    return null;
+  }
+  return notification("", entry.from_user_id, "");
 };
 
 // Payment requests, their responses, and cancellations change no friend state:
@@ -381,7 +397,7 @@ export const routeInboundEntry = async (state, entry) => {
     case PEER_MESSAGE_TYPE_FRIEND_REQUEST:
       return await applyInboundFriendRequest(state, entry);
     case PEER_MESSAGE_TYPE_FRIEND_ACCEPT:
-      return applyInboundFriendAccept(state, entry);
+      return await applyInboundFriendAccept(state, entry);
     case PEER_MESSAGE_TYPE_FRIEND_REJECT:
       return await applyInboundFriendReject(state, entry);
     case PEER_MESSAGE_TYPE_TRUST_LIMIT_SUGGESTION:
@@ -396,6 +412,8 @@ export const routeInboundEntry = async (state, entry) => {
       return applyInboundTransactionCreated(state, entry);
     case PEER_MESSAGE_TYPE_NAME_CHANGED:
       return applyInboundNameChanged(state, entry);
+    case PEER_MESSAGE_TYPE_NOTIFICATION_PREFS:
+      return applyInboundNotificationPrefs(state, entry);
     default:
       warnIllegalPeerEntry(entry);
       return null;

@@ -192,7 +192,13 @@
       <dt id="push-hint" data-files="js/push/push-subscribe.js js/notify/notification-policy.js"><a class="term-self" href="#push-hint">Push hint</a></dt>
       <dd>A small encrypted payload attached to a queued envelope so the relay
         can wake an offline recipient via Web Push without learning its
-        contents.</dd>
+        contents. Attached only for event types the recipient enabled
+        (<a href="#notification-prefs">notification prefs</a>).</dd>
+
+      <dt id="notification-prefs" data-files="js/notify/notification-policy.js js/notify/notification-prefs.js"><a class="term-self" href="#notification-prefs">Notification prefs</a></dt>
+      <dd>A user's choice of which events reach them as OS notifications, sent to
+        friends as a <code>notification_prefs</code> ledger message; the latest one
+        wins. See <a href="tip-005-os-notifications.html">TIP-005</a>.</dd>
     </dl>
 
     <h2>State &amp; rendering</h2>

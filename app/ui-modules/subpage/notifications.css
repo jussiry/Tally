@@ -1,0 +1,41 @@
+.notify-settings-intro {
+  margin: 0 2px 14px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.notify-settings-events {
+  padding: 4px 0 6px;
+}
+
+.notify-settings-events .notify-settings-row:first-child {
+  border-top: none;
+}
+
+.notify-settings-service {
+  --surface-radius: 14px;
+  padding: 12px 14px;
+}
+
+.notify-settings-service-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.notify-settings-service-host {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.notify-settings-service-host[hidden] {
+  display: none;
+}
+
+.notify-settings-service-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}

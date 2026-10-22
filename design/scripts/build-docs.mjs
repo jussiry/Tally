@@ -211,7 +211,9 @@ const DOCS = [
     title: "TIP-005 OS notifications", status: "proposal", group: "TIPs",
     files: ["js/notify/notification-policy.js", "js/push/push-subscribe.js", "sw.js",
       "js/peer/handlers.js", "js/ui/notifications.js", "js/commands/transaction.js",
-      "js/commands/payment-request.js", "js/commands/friendship.js"],
+      "js/commands/payment-request.js", "js/commands/friendship.js",
+      "js/notify/notification-prefs.js", "js/commands/notification-prefs.js",
+      "js/notify/local-os-notification.js", "ui-modules/subpage/notifications.js"],
   },
   {
     src: "TIPs/implemented/TIP-006-external-nostr-key-storage.md", out: "tip-006-external-nostr-key-storage.html",

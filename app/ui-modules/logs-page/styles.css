@@ -65,3 +65,9 @@
   overflow: visible;
   text-overflow: clip;
 }
+
+/* Inbound events the user also gets as OS notifications (Settings → Notifications). */
+.log-item--os-notify {
+  --surface-background: linear-gradient(var(--notify-faint), var(--notify-faint)), #fff;
+  box-shadow: inset 3px 0 0 var(--notify), var(--surface-shadow);
+}

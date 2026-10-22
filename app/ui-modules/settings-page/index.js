@@ -317,7 +317,13 @@ const bindStunSection = (root, data) => {
 const bindNotifySection = async (root) => {
   const toggleEl = root.querySelector('[data-bind="os-notify-toggle"]');
   const hintEl = root.querySelector('[data-bind="os-notify-hint"]');
+  const linkEl = root.querySelector('[data-bind="os-notify-link"]');
   if (!toggleEl) return;
+
+  // The per-event choice only matters once this device can show notifications.
+  const setLinkVisible = (visible) => {
+    if (linkEl) linkEl.hidden = !visible;
+  };
 
   const setHint = (message) => {
     if (!hintEl) return;
@@ -332,6 +338,7 @@ const bindNotifySection = async (root) => {
   }
 
   toggleEl.hidden = false;
+  setLinkVisible(state === "enabled");
   if (state === "denied") {
     setHint("Notifications are blocked in your browser settings.");
   }
@@ -356,6 +363,7 @@ const bindNotifySection = async (root) => {
       // Reconcile the visual state with what actually happened (e.g. the user
       // dismissed the permission prompt, leaving us disabled).
       const shouldBeChecked = result === "enabled";
+      setLinkVisible(shouldBeChecked);
       if (shouldBeChecked !== isChecked) {
         isSyncing = true;
         toggle.setChecked(shouldBeChecked);

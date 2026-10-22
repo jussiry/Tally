@@ -14,6 +14,8 @@ export const PEER_MESSAGE_TYPE_NAME_CHANGED = "name_changed";
 export const PEER_MESSAGE_TYPE_PAYMENT_REQUEST = "payment_request";
 export const PEER_MESSAGE_TYPE_PAYMENT_REQUEST_RESPONSE = "payment_request_response";
 export const PEER_MESSAGE_TYPE_PAYMENT_REQUEST_CANCEL = "payment_request_cancel";
+// Which events the author wants as OS notifications; see notify/notification-policy.js.
+export const PEER_MESSAGE_TYPE_NOTIFICATION_PREFS = "notification_prefs";
 export const PEER_MESSAGE_TYPE_PING = "ping";
 export const PEER_MESSAGE_TYPE_PONG = "pong";
 export const PEER_MESSAGE_TYPE_RECEIVED = "received";

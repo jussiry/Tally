@@ -24,6 +24,7 @@ import {
   isAcceptedFriendshipStatus,
 } from "../utils/friendships.js";
 import { asTrimmedString, hasUser } from "../state-utils.js";
+import { shareOsNotifyTypesWith } from "../notify/notification-prefs.js";
 import { buildView } from "../ui/view-model.js";
 import {
   loadData,
@@ -79,6 +80,7 @@ export const createFriend = async ({ friendId, trustLimit, name, relays }) => {
     });
     appendLedgerEntryFromMessage(state, acceptMsg);
     routeOutboundEntry(state, acceptMsg);
+    await shareOsNotifyTypesWith(state, normalizedFriendId);
     return persistAndBuildView(state);
   }
 
@@ -146,6 +148,7 @@ export const acceptFriend = async (friendId) => {
   });
   appendLedgerEntryFromMessage(state, acceptMsg);
   routeOutboundEntry(state, acceptMsg);
+  await shareOsNotifyTypesWith(state, normalizedFriendId);
 
   return persistAndBuildView(state);
 };

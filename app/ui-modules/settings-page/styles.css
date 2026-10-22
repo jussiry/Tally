@@ -447,6 +447,29 @@
   display: none;
 }
 
+.settings-notify-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+  padding: 10px 14px 6px;
+  border-top: 1px solid rgba(15, 12, 8, 0.06);
+  font-size: 13px;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.settings-notify-link-chevron {
+  font-size: 18px;
+  line-height: 1;
+  color: var(--muted);
+}
+
+.settings-notify-link[hidden] {
+  display: none;
+}
+
 .check-toggle[hidden] {
   display: none;
 }

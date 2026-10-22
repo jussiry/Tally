@@ -1,16 +1,16 @@
 /*
 Notification policy — the single place that describes Tally's notification
-layers and decides which peer events deserve an OS-level push.
+layers and decides which peer events deserve an OS-level notification.
 
 The app surfaces "something happened" through four distinct layers, each with a
 different audience, lifetime, and trigger:
 
-  1. Logs (js/ui/realtime-log or the activity log)
-     Every realtime event. Diagnostic, derived automatically from the ledger;
-     never user-facing as an alert.
+  1. Logs (the logs page, derived from the ledger)
+     Every ledger event. Rows whose event type the user routes to the OS are
+     highlighted there.
 
   2. In-app toasts (js/ui/notifications.js)
-     Almost all inbound events, shown only while the app is open and focused.
+     Every inbound event in OS_NOTIFIABLE_EVENTS, shown while the app is open.
      Transient acknowledgement that the UI just changed.
 
   3. Actionable boxes (the friend page, derived from app state)
@@ -18,78 +18,173 @@ different audience, lifetime, and trigger:
      requests, pending payment requests, trust-limit suggestions. They live as
      long as the state that produced them.
 
-  4. OS notifications (Web Push -> service worker -> showNotification)
-     The only layer that reaches the user when the app is closed. Reserved for
-     a small set of high-signal events, because an OS notification interrupts.
+  4. OS notifications (Web Push -> service worker -> showNotification, or a
+     local showNotification while the app is open but hidden)
+     The only layer that reaches the user when the app is closed. Each event
+     type is opt-in per user (Settings → Notifications); OS_NOTIFIABLE_EVENTS
+     lists them with their defaults.
 
-This module owns the layer-4 decision. `buildOsNotificationHint` maps an
-outgoing peer message to the short title/body the *recipient* should see, or
-null for message types that should never raise an OS notification (sync,
-receipts, name changes, trust-limit chatter). The sender builds the hint —
-it has the human-readable context (its own name, the amount) — encrypts it for
-the recipient, and the relay forwards it via Web Push only when no device of
-the recipient is online. See TIPs/TIP-004-os-notifications.md.
+Per-type choice and delivery. Browsers forbid silent pushes (every push must
+show a notification), so the recipient can't filter in its service worker.
+Instead the recipient publishes its choice as a `notification_prefs` ledger
+message to every friend (and a self-addressed copy for its own devices); the
+*sender* reads the latest one from its ledger and attaches the encrypted
+`push_hint` only for enabled types. The relay pushes only envelopes with a
+hint, so it still never learns the event type. A peer with no prefs entry
+(new friend, stranger's friend request, older app) gets the defaults.
+See TIPs/TIP-005-os-notifications.md.
 
 Keeping this mapping separate from the state-mutation handlers (peer/handlers.js)
 means the "what shows where" question has one answer, and adding a new
-OS-notifiable event is a single edit here rather than scattered string-building.
+OS-notifiable event is an entry in OS_NOTIFIABLE_EVENTS plus a HINT_BUILDERS
+function here.
 @category ui
 */
 
 import { formatCurrency } from "../ui/format.js";
 import {
+  PEER_MESSAGE_TYPE_FRIEND_ACCEPT,
+  PEER_MESSAGE_TYPE_FRIEND_REJECT,
   PEER_MESSAGE_TYPE_FRIEND_REQUEST,
+  PEER_MESSAGE_TYPE_NAME_CHANGED,
+  PEER_MESSAGE_TYPE_NOTIFICATION_PREFS,
   PEER_MESSAGE_TYPE_PAYMENT_REQUEST,
+  PEER_MESSAGE_TYPE_PAYMENT_REQUEST_CANCEL,
+  PEER_MESSAGE_TYPE_PAYMENT_REQUEST_RESPONSE,
   PEER_MESSAGE_TYPE_TRANSACTION_CREATED,
+  PEER_MESSAGE_TYPE_TRUST_LIMIT_SUGGESTION,
 } from "../peer/messages.js";
 
 const APP_NAME = "Tally";
+
+// Every inbound event that shows an in-app toast, in settings-page order. The
+// three that were OS-notifiable before per-type choice existed stay on by
+// default; the rest are opt-in.
+export const OS_NOTIFIABLE_EVENTS = [
+  { type: PEER_MESSAGE_TYPE_TRANSACTION_CREATED, label: "Money received", defaultEnabled: true },
+  { type: PEER_MESSAGE_TYPE_PAYMENT_REQUEST, label: "Payment requested", defaultEnabled: true },
+  { type: PEER_MESSAGE_TYPE_FRIEND_REQUEST, label: "Friend request", defaultEnabled: true },
+  { type: PEER_MESSAGE_TYPE_PAYMENT_REQUEST_RESPONSE, label: "Payment request answered", defaultEnabled: false },
+  { type: PEER_MESSAGE_TYPE_PAYMENT_REQUEST_CANCEL, label: "Payment request cancelled", defaultEnabled: false },
+  { type: PEER_MESSAGE_TYPE_FRIEND_ACCEPT, label: "Friend request accepted", defaultEnabled: false },
+  { type: PEER_MESSAGE_TYPE_FRIEND_REJECT, label: "Friend request rejected", defaultEnabled: false },
+  { type: PEER_MESSAGE_TYPE_TRUST_LIMIT_SUGGESTION, label: "Trust limit changes", defaultEnabled: false },
+  { type: PEER_MESSAGE_TYPE_NAME_CHANGED, label: "Friend changed name", defaultEnabled: false },
+];
+
+const KNOWN_TYPES = new Set(OS_NOTIFIABLE_EVENTS.map((event) => event.type));
+
+export const getDefaultOsNotifyTypes = () =>
+  OS_NOTIFIABLE_EVENTS.filter((event) => event.defaultEnabled).map((event) => event.type);
+
+// Keep only known types, deduped, in catalogue order — so two lists with the
+// same members compare equal and unknown types from newer peers are ignored.
+export const normalizeOsNotifyTypes = (types) => {
+  const wanted = new Set(Array.isArray(types) ? types : []);
+  return OS_NOTIFIABLE_EVENTS.map((event) => event.type).filter(
+    (type) => wanted.has(type) && KNOWN_TYPES.has(type)
+  );
+};
+
+export const sameOsNotifyTypes = (a, b) =>
+  normalizeOsNotifyTypes(a).join(",") === normalizeOsNotifyTypes(b).join(",");
+
+const entryTime = (entry) => entry?.originated_at || entry?.timestamp || "";
+
+// Latest notification_prefs choice per author, from a ledger. Authors with no
+// entry are absent; callers fall back to the defaults. In a user's own ledger
+// the only entries by a friend are ones addressed to this user, and entries
+// by the user itself (to friends or self-addressed) all carry the same choice.
+export const collectOsNotifyTypesByAuthor = (ledger) => {
+  const latest = new Map();
+  (Array.isArray(ledger) ? ledger : []).forEach((entry) => {
+    if (entry?.type !== PEER_MESSAGE_TYPE_NOTIFICATION_PREFS) return;
+    if (!Array.isArray(entry.payload?.enabled)) return;
+    const previous = latest.get(entry.from_user_id);
+    if (!previous || entryTime(entry) > entryTime(previous)) {
+      latest.set(entry.from_user_id, entry);
+    }
+  });
+  const byAuthor = {};
+  latest.forEach((entry, authorId) => {
+    byAuthor[authorId] = normalizeOsNotifyTypes(entry.payload.enabled);
+  });
+  return byAuthor;
+};
+
+// The OS-notified event types chosen by `authorId`, or the defaults.
+export const getOsNotifyTypes = (ledger, authorId) =>
+  collectOsNotifyTypesByAuthor(ledger)[authorId] || getDefaultOsNotifyTypes();
 
 const normalizeAmount = (value) => {
   const amount = Number(value);
   return Number.isFinite(amount) && amount > 0 ? amount : null;
 };
 
+const hint = (body) => ({ title: APP_NAME, body });
+
 // Builders are keyed by message type. Each receives the outgoing peer message
 // and the sender's display name (the recipient sees the sender's name, e.g.
-// "Bob sent you €25.00"). Returning null means "no OS notification".
+// "Bob sent you €25.00"). Returning null means "no OS notification". Texts
+// follow the recipient's in-app toast (peer/handlers.js) where the sender can
+// know it; trust-limit wording stays neutral because only the recipient knows
+// whether a suggestion raised, lowered or agreed a limit.
 const HINT_BUILDERS = {
   [PEER_MESSAGE_TYPE_TRANSACTION_CREATED]: (message, senderName) => {
     const amount = normalizeAmount(message.payload?.amount_eur);
-    if (amount === null) return null;
-    return {
-      title: APP_NAME,
-      body: `${senderName} sent you ${formatCurrency(amount)}`,
-    };
+    return amount === null ? null : hint(`${senderName} sent you ${formatCurrency(amount)}`);
   },
   [PEER_MESSAGE_TYPE_PAYMENT_REQUEST]: (message, senderName) => {
     const amount = normalizeAmount(message.payload?.amount_eur);
     if (amount === null) return null;
     const note = typeof message.payload?.note === "string" ? message.payload.note.trim() : "";
     const base = `${senderName} requested ${formatCurrency(amount)}`;
-    return {
-      title: APP_NAME,
-      body: note ? `${base} — ${note}` : base,
-    };
+    return hint(note ? `${base} — ${note}` : base);
   },
-  [PEER_MESSAGE_TYPE_FRIEND_REQUEST]: (message, senderName) => ({
-    title: APP_NAME,
-    body: `${senderName} sent you a friend request`,
-  }),
+  [PEER_MESSAGE_TYPE_FRIEND_REQUEST]: (message, senderName) =>
+    hint(`${senderName} sent you a friend request`),
+  [PEER_MESSAGE_TYPE_PAYMENT_REQUEST_RESPONSE]: (message, senderName) =>
+    hint(
+      message.payload?.accepted === true
+        ? `${senderName} accepted your payment request`
+        : `${senderName} declined your payment request`
+    ),
+  [PEER_MESSAGE_TYPE_PAYMENT_REQUEST_CANCEL]: (message, senderName) =>
+    hint(`${senderName} cancelled their payment request`),
+  [PEER_MESSAGE_TYPE_FRIEND_ACCEPT]: (message, senderName) =>
+    hint(`${senderName} accepted your friend request`),
+  [PEER_MESSAGE_TYPE_FRIEND_REJECT]: (message, senderName) =>
+    hint(`${senderName} rejected your friend request`),
+  [PEER_MESSAGE_TYPE_TRUST_LIMIT_SUGGESTION]: (message, senderName) => {
+    const limit = Number(message.payload?.credit_limit_eur);
+    if (!Number.isFinite(limit) || limit < 0) return null;
+    return hint(`${senderName}: trust limit ${formatCurrency(limit)}`);
+  },
+  [PEER_MESSAGE_TYPE_NAME_CHANGED]: (message) => {
+    const name = typeof message.payload?.name === "string" ? message.payload.name.trim() : "";
+    return name ? hint(`A friend is now called ${name}`) : null;
+  },
 };
 
 // True when a message type can raise an OS notification on the recipient.
 export const isOsNotifiableType = (type) => Boolean(HINT_BUILDERS[type]);
 
 // Build the OS-notification hint a recipient should see for an outgoing peer
-// message, or null when this message type/payload warrants none. `senderName`
-// falls back to a generic label so a missing name never produces "undefined".
-export const buildOsNotificationHint = (message, { senderName } = {}) => {
+// message, or null when this type/payload warrants none or the recipient
+// turned the type off. `recipientTypes` is the recipient's latest choice
+// (undefined → defaults). `senderName` falls back to a generic label so a
+// missing name never produces "undefined". The message id becomes the
+// notification tag, so a push and a local notification for the same message
+// replace each other instead of stacking.
+export const buildOsNotificationHint = (message, { senderName, recipientTypes } = {}) => {
   if (!message || typeof message !== "object") return null;
   const builder = HINT_BUILDERS[message.type];
   if (!builder) return null;
+  const enabled = recipientTypes ? normalizeOsNotifyTypes(recipientTypes) : getDefaultOsNotifyTypes();
+  if (!enabled.includes(message.type)) return null;
   const name = (typeof senderName === "string" && senderName.trim()) || "A friend";
-  return builder(message, name);
+  const built = builder(message, name);
+  return built ? { ...built, tag: message.id } : null;
 };
 
 // Shown when the service worker receives a push but cannot decrypt the hint

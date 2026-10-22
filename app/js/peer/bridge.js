@@ -50,6 +50,8 @@ import {
   PEER_RECEIPT_RESULT_PROCESSED,
 } from "./messages.js";
 import { showNotification } from "../ui/notifications.js";
+import { collectOsNotifyTypesByAuthor } from "../notify/notification-policy.js";
+import { showLocalOsNotification } from "../notify/local-os-notification.js";
 
 // Everything the realtime client needs to decide who to connect to and what
 // to re-deliver after a reconnect. The ledger is included so sync_hello can
@@ -93,6 +95,9 @@ export const getRealtimeSnapshot = async () => {
     keyProvider: createKeyProviderFromState(state),
     peerIds: Array.from(new Set([...relationshipPeerIds, ...queuedPeerIds])),
     peerNames,
+    // Each peer's latest OS-notification choice (absent → defaults). The
+    // outbox flush attaches a push hint only for types the recipient enabled.
+    peerOsNotifyTypes: collectOsNotifyTypesByAuthor(state.ledger),
     outbox: Array.isArray(state.outbox) ? state.outbox.map((entry) => createPeerMessageModel(entry)) : [],
     ledger: Array.isArray(state.ledger) ? state.ledger.map((entry) => createLedgerEntryModel(entry)) : [],
     relays,
@@ -344,6 +349,7 @@ export const applyInboundPeerMessage = async (incomingMessage) => {
   }
 
   showNotification(notification);
+  void showLocalOsNotification(state, entry, notification);
 
   return createInboundProcessingResult(
     await persistAndBuildView(state),

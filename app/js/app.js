@@ -30,6 +30,7 @@ import { bindRecord } from "../ui-modules/subpage/record.js";
 import { bindRequest } from "../ui-modules/subpage/request.js";
 import { bindTrust } from "../ui-modules/subpage/trust.js";
 import { bindTransfer } from "../ui-modules/subpage/transfer.js";
+import { bindNotificationSettings } from "../ui-modules/subpage/notifications.js";
 import { applyDevSeedIfRequested } from "./dev/seed.js";
 import { createRealtimeClient } from "./peer/client.js";
 import { subscribeToPeerStatusChanges } from "./peer/status.js";
@@ -67,6 +68,7 @@ const templatePaths = {
   request: "ui-modules/subpage/request.html",
   trust: "ui-modules/subpage/trust.html",
   transfer: "ui-modules/subpage/transfer.html",
+  notifications: "ui-modules/subpage/notifications.html",
   trustLimitField: "ui-modules/subpage/trust-limit-field.html",
   trustExplainer: "ui-modules/subpage/trust-explainer.html",
   tallyActions: "ui-modules/components/tally-actions.html",
@@ -216,6 +218,9 @@ const parseRoute = () => {
   }
   if (hash === "transfer") {
     return createSubpageRoute("transfer");
+  }
+  if (hash === "notifications") {
+    return createSubpageRoute("notifications");
   }
   return pageTitles[hash] ? { type: "page", page: hash } : { type: "page", page: "tally" };
 };
@@ -387,6 +392,12 @@ const loadPage = async (route) => {
       renderSubpageContent(pageView, transferHtml);
       bindTransfer(pageView, data);
       document.title = "Tally — Transfer";
+      setFallbackBackNavigation(pageView);
+    } else if (route.type === "notifications") {
+      const notificationsHtml = await fetchTemplate(templatePaths.notifications);
+      renderSubpageContent(pageView, notificationsHtml);
+      bindNotificationSettings(pageView, data);
+      document.title = "Tally — Notifications";
       setFallbackBackNavigation(pageView);
     } else if (route.type === "trust") {
       const [trustHtml, trustLimitFieldHtml, trustExplainerHtml] = await Promise.all([

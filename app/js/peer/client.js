@@ -106,6 +106,10 @@ const createRealtimeClient = () => {
   // envelopes for us — that way we won't re-request ledger entries we're
   // about to receive anyway via the regular inbound path.
   let serverQueueDrained = false;
+  // Envelopes the server delivered that are still being decrypted and applied.
+  // `queue_drained` only means the server sent everything; the queue counts as
+  // drained for us once these have landed in the ledger too.
+  const inflightServerEnvelopes = new Set();
   // Friend-mesh sync tracking — keyed by friend peerKey
   // (`${peerUserId}|${peerDeviceId}`) so each of a friend's devices gets
   // its own sync_hello / sync_data exchange.
@@ -529,7 +533,10 @@ const createRealtimeClient = () => {
       });
     },
     onPeerEnvelopeFromServer: ({ envelope }) => {
-      void handleServerDeliveredEnvelope(envelope);
+      const processing = handleServerDeliveredEnvelope(envelope)
+        .catch(() => {})
+        .finally(() => inflightServerEnvelopes.delete(processing));
+      inflightServerEnvelopes.add(processing);
     },
     onSessionReady: () => {
       // The WebSocket just (re-)registered, so any envelopes the server held
@@ -543,10 +550,14 @@ const createRealtimeClient = () => {
       syncedSelfDevices.clear();
       void syncRealtimeState();
     },
-    onQueueDrained: () => {
+    onQueueDrained: async () => {
+      await Promise.all(Array.from(inflightServerEnvelopes));
       logRealtimeEvent("Server queue drained");
       serverQueueDrained = true;
       trySyncPendingPeers();
+      // Held-back offline sends go out now, with a snapshot that includes what
+      // the queue delivered (see the drain check in flushOutbox).
+      void syncRealtimeState();
     },
   });
 
@@ -588,6 +599,12 @@ const createRealtimeClient = () => {
       if (!directlyConnected && envelopesSentToServer.has(message.id)) {
         continue;
       }
+      // Offline sends wait until the server's held envelopes are applied: one
+      // of them may be the recipient's newer notification_prefs, which decides
+      // whether this message gets a push hint (notification-policy.js).
+      if (!directlyConnected && !serverQueueDrained) {
+        continue;
+      }
 
       let envelope;
       try {
@@ -606,9 +623,10 @@ const createRealtimeClient = () => {
 
       // Offline path: attach an encrypted OS-notification hint so the relay can
       // wake the recipient via Web Push without ever seeing the plaintext. Only
-      // a few message types are OS-notifiable (see notification-policy.js).
+      // types the recipient enabled get one (see notification-policy.js).
       const hint = buildOsNotificationHint(message, {
         senderName: currentSnapshot.userName,
+        recipientTypes: currentSnapshot.peerOsNotifyTypes?.[message.to_user_id],
       });
       if (hint) {
         try {

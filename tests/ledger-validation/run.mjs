@@ -46,6 +46,12 @@ check("friend_request -10 rejected", hasValidLedgerValues(entry("friend_request"
 // Types without money values always pass.
 check("name_changed accepted", hasValidLedgerValues(entry("name_changed", { name: "Bob" })), true);
 
+// Notification prefs: `enabled` must be a list of type names.
+check("notification_prefs list accepted", hasValidLedgerValues(entry("notification_prefs", { enabled: ["payment_request"] })), true);
+check("notification_prefs empty list accepted", hasValidLedgerValues(entry("notification_prefs", { enabled: [] })), true);
+check("notification_prefs missing list rejected", hasValidLedgerValues(entry("notification_prefs", {})), false);
+check("notification_prefs non-string rejected", hasValidLedgerValues(entry("notification_prefs", { enabled: [1] })), false);
+
 // Merge: an invalid-value entry never reaches the ledger.
 const state = { ledger: [] };
 const added = await mergeSyncedLedgerEntries(state, [

@@ -1,0 +1,33 @@
+<div class="notify-settings">
+  <p class="notify-settings-intro">
+    Choose which events also show up as notifications on your devices while you're not using Tally.
+    Everything still appears in the app and in Logs.
+  </p>
+
+  <div class="notify-settings-events surface-box" data-list="notify-events"></div>
+
+  <h3 class="settings-subtitle">Push service</h3>
+  <div class="notify-settings-service surface-box">
+    <div class="notify-settings-service-name" data-bind="push-service-name"></div>
+    <div class="notify-settings-service-host" data-bind="push-service-host"></div>
+    <p class="notify-settings-service-note">
+      Your browser chooses this service and it can't be changed here. It only carries an encrypted message;
+      the notification text is decrypted on this device.
+    </p>
+  </div>
+
+  <button class="settings-big-button surface-box" type="button" data-action="reset-notify-defaults">
+    Reset to defaults
+  </button>
+</div>
+
+<template data-template="notify-event">
+  <div class="relay-share-row notify-settings-row">
+    <span class="relay-share-label" data-bind="label"></span>
+    <button class="check-toggle" type="button" data-bind="toggle" aria-pressed="false">
+      <span class="check-toggle-track">
+        <span class="check-toggle-thumb"></span>
+      </span>
+    </button>
+  </div>
+</template>
