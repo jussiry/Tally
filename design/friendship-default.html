@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Defaulting — Design</title>
+  <link rel="stylesheet" href="assets/design.css" />
+</head>
+<body>
+  <main class="page" data-status="implemented" data-files="
+    js/commands/friendship-default.js js/peer/handlers.js js/ledger.ts
+    js/peer/bridge.js js/friends-helpers.js js/utils/friendships.js
+    ui-modules/subpage/friend.js ui-modules/friends-page/index.js
+    tests/two-client-e2e/scenarios/friendship-default.cjs
+  ">
+<h1>Defaulting</h1>
+<p class="lede">How a friendship is disabled when someone can't (or won't) settle, how it can come back, and how one side can drop it for good.</p>
+<hr />
+<h2>1. Why</h2>
+<p>Someone who can't pay back is better off telling their friend than quietly abandoning Tally. Defaulting does that openly, with an optional note. The same step absolves a friend's debt, deactivates a zero-tally friendship, and removes test or mistaken friends from the list.</p>
+
+<h2>2. The two steps</h2>
+<h3>2.1 Default — the friendship is disabled</h3>
+<p>The friend page's danger action sends a signed <code>friendship_default</code> message. Its payload holds the note and the tally at that moment, from the author's side. The button is labelled <em>Default on tally</em>, <em>Absolve tally</em> or <em>Deactivate friend connection</em>, depending on which way the tally points. Both sides then set <code>friendship_status</code> to <code>disabled</code> (<a href="glossary.html#friendship-status">glossary</a>):</p>
+<ul><li>The records stay and are shown as <em>Historic records</em>, but they count in no total (the <a href="glossary.html#view">view</a> sums accepted friends only).</li><li>No new activity: handlers accept records, requests, trust changes and name changes from accepted friends only. A disabled friend is not peer-eligible, so no connection or sync is kept up.</li><li>The friend is listed under <em>Disabled connections</em> on the friends page. Their page shows the default notice (who, when, the note), a status chip instead of the Send buttons, and no trust editing.</li></ul>
+
+<h3>2.2 Delete history — final for this user</h3>
+<p>On a disabled friend's page, <em>Delete history</em> removes the friend record, contact, queued messages and every ledger entry between the two. A signed, self-addressed <code>friendship_history_deleted</code> entry records the deletion. It is never sent to the friend. Self-sync carries it to the user's other devices, which delete their copies too (<code>bridge.js</code>). Until the friend shows up again, any entry with them dated before the deletion is dropped wherever it comes from, whether self-sync, a replay or the friend (<code>isDeletedHistoryEntry</code> in <code>ledger.ts</code>), so the history can't creep back.</p>
+<p>After this the user cannot restore the friendship. The friend still can, if they kept their copy.</p>
+
+<h2>3. Reactivation</h2>
+<p>Either side of a disabled friendship can <em>suggest reactivation</em>. The <code>reactivation_request</code> carries the requester's copy of the shared history, because the recipient may have deleted theirs. Earlier requests are left out of it, so histories never nest.</p>
+<p>The outer signature only proves who sent the list. So every history entry is checked on its own (<code>verifyReactivationHistory</code>):</p>
+<ul><li>It is between exactly these two users.</li><li>Its values are plausible (<a href="spec-ledger.html">Ledger</a> value rules).</li><li>It carries a valid <a href="glossary.html#authorship">authorship proof</a> by its own author. That author may be either user: the recipient's own records come back signed by the recipient.</li></ul>
+<p>One bad entry rejects the whole suggestion, since a partial history would give a wrong tally. If the recipient had deleted the history, the friend comes back as <em>disabled</em>, with the tally rebuilt from the verified records and an incoming suggestion to <em>Reactivate</em> or <em>Decline</em>.</p>
+<p>A <code>reactivation_response</code> answers it. On acceptance both sides return to <code>accepted</code>, and the records count again. A suggestion is open until a response with its <code>request_id</code> is in the ledger (<code>getOpenReactivationRequests</code>), like <a href="glossary.html#payment-request">payment requests</a>. Suggesting while the friend's own suggestion is open counts as accepting it.</p>
+<p>A disabled friend's fresh <code>friend_request</code>, or an old <code>friend_accept</code> replayed by sync, is ignored. Reactivation is the only way back, so the old tally never revives unannounced.</p>
+
+<h2>4. Tests</h2>
+<p><code>tests/two-client-e2e/scenarios/friendship-default.cjs</code> walks the whole flow through the UI. It covers the default with a note, the disabled views, history deletion, a suggestion with a tampered record being rejected, the real suggestion restoring the deleted side, and acceptance. <code>tests/ledger-validation</code> covers the new types' value rules.</p>
+  </main>
+  <script src="assets/pages.js"></script>
+  <script src="assets/design.js"></script>
+</body>
+</html>

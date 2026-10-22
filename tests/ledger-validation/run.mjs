@@ -52,6 +52,20 @@ check("notification_prefs empty list accepted", hasValidLedgerValues(entry("noti
 check("notification_prefs missing list rejected", hasValidLedgerValues(entry("notification_prefs", {})), false);
 check("notification_prefs non-string rejected", hasValidLedgerValues(entry("notification_prefs", { enabled: [1] })), false);
 
+// Friendship default: the tally at default time is a number; the note optional text.
+check("friendship_default accepted", hasValidLedgerValues(entry("friendship_default", { tally_eur: -20, note: "sorry" })), true);
+check("friendship_default missing tally rejected", hasValidLedgerValues(entry("friendship_default", { note: "x" })), false);
+check("friendship_default non-text note rejected", hasValidLedgerValues(entry("friendship_default", { tally_eur: 0, note: 5 })), false);
+
+// Reactivation request: a history list (vetted per entry on receipt), limit never negative.
+check("reactivation_request accepted", hasValidLedgerValues(entry("reactivation_request", { history: [], trust_credit_limit_eur: 10 })), true);
+check("reactivation_request without history rejected", hasValidLedgerValues(entry("reactivation_request", {})), false);
+check("reactivation_request -1 limit rejected", hasValidLedgerValues(entry("reactivation_request", { history: [], trust_credit_limit_eur: -1 })), false);
+
+// History deletion names the friend.
+check("friendship_history_deleted accepted", hasValidLedgerValues(entry("friendship_history_deleted", { friend_id: "npub1x" })), true);
+check("friendship_history_deleted without friend rejected", hasValidLedgerValues(entry("friendship_history_deleted", {})), false);
+
 // Merge: an invalid-value entry never reaches the ledger.
 const state = { ledger: [] };
 const added = await mergeSyncedLedgerEntries(state, [

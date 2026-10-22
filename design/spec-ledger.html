@@ -52,6 +52,8 @@ originatedAt — the peer message's created_at timestamp</code></pre>
 <p>A <code>payment_request</code> (keyed by its <code>payload.request_id</code>, falling back to the entry <code>id</code> for old entries) is open until the ledger holds a closing entry for the same id:</p>
 <ul><li>a <code>payment_request_response</code> authored by the request's <strong>recipient</strong> (paid or declined), or</li><li>a <code>payment_request_cancel</code> authored by its <strong>requester</strong>.</li></ul>
 <p>The role check means one party cannot close a request on the other's behalf with the wrong kind of entry. Because closure is a set lookup, the result does not depend on arrival order: a cancel synced in before the request it cancels still hides it. Closing entries are recorded even when the request is already closed — if a cancel crosses a payment in flight, the ledger keeps both, and the requester is told money moved.</p>
+<h3>4.4 Defaults and reactivation</h3>
+<p><code>getLatestFriendshipDefaults</code> and <code>getOpenReactivationRequests</code> derive a disabled friendship's notice and its open suggestion the same way. A suggestion is open until a <code>reactivation_response</code> for its <code>request_id</code> is in the ledger. <code>deriveTallyFromLedger</code> rebuilds a friend's tally from <code>transaction_created</code> entries, for a friend whose record was deleted and came back with a suggestion. <code>verifyReactivationHistory</code> vets the history such a suggestion carries, entry by entry. See <a href="friendship-default.html">Defaulting</a>.</p>
 <hr />
 <h2>5. Authorship Verification</h2>
 <h3>5.1 Why verify?</h3>
@@ -75,7 +77,7 @@ originatedAt — the peer message's created_at timestamp</code></pre>
 <h2>6. Sync Merge</h2>
 <h3>6.1 <code>mergeSyncedLedgerEntries(state, entries)</code></h3>
 <p>Merges a batch of entries received from a sync peer:</p>
-<ol><li>Builds a set of existing entry ids.</li><li>For each entry: normalises, skips duplicates, runs <code>verifyLedgerEntryAuthorship</code>.</li><li>Entries that fail verification are logged and discarded.</li><li>New entries are prepended; after the loop the array is sorted descending by <code>timestamp</code>.</li><li>Returns the count of entries actually added.</li></ol>
+<ol><li>Builds a set of existing entry ids.</li><li>For each entry: normalises, skips duplicates and history the user deleted (<code>isDeletedHistoryEntry</code>, see <a href="friendship-default.html">Defaulting</a>), checks values, runs <code>verifyLedgerEntryAuthorship</code>.</li><li>Entries that fail verification are logged and discarded.</li><li>New entries are prepended; after the loop the array is sorted descending by <code>timestamp</code>.</li><li>Returns the count of entries actually added.</li></ol>
 <p>Does <strong>not</strong> persist. The caller owns persistence so a single <code>saveAppState</code> can cover the ledger update and any concurrent state changes.</p>
 <hr />
 <h2>7. Recovery via Peer Sync</h2>

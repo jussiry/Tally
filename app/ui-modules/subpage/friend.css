@@ -165,6 +165,10 @@
   opacity: 0.72;
 }
 
+.friend-stat--disabled .friend-stat-edit-icon {
+  display: none;
+}
+
 .friend-card .tx-list {
   margin-top: 8px;
 }
@@ -272,3 +276,41 @@
   color: var(--muted);
 }
 
+
+.friend-default-info {
+  --surface-radius: 18px;
+  margin: 10px 0 0;
+  padding: 16px 18px;
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  text-align: center;
+}
+
+.friend-default-info[hidden],
+.friend-default-info [hidden] {
+  display: none;
+}
+
+.friend-default-info-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.friend-default-info-note {
+  margin: 0;
+  font-size: 14px;
+  font-style: italic;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.friend-default-info-status {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}

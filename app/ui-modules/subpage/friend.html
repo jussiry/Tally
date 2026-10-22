@@ -1,4 +1,23 @@
 <div class="friend-content">
+  <div class="friend-default-info surface-box" data-section="default-info" hidden>
+    <div class="friend-default-info-text" data-bind="default-info-text"></div>
+    <blockquote class="friend-default-info-note" data-bind="default-info-note" hidden></blockquote>
+    <div class="friend-default-info-status" data-bind="reactivation-status" hidden></div>
+    <button class="friend-inline-action friend-inline-action--primary surface-box" type="button" data-action="suggest-reactivation" hidden>
+      Suggest reactivation
+    </button>
+  </div>
+  <div class="actionable-box surface-box" data-section="reactivation-request" hidden>
+    <div class="actionable-box-label" data-bind="reactivation-request-label"></div>
+    <div class="actionable-box-actions">
+      <button class="friend-inline-action friend-inline-action--primary surface-box" type="button" data-action="accept-reactivation">
+        Reactivate
+      </button>
+      <button class="friend-inline-action surface-box" type="button" data-action="decline-reactivation">
+        Decline
+      </button>
+    </div>
+  </div>
   <div class="actionable-box surface-box" data-section="friend-request-notification" hidden>
     <div class="actionable-box-label" data-bind="friend-request-label"></div>
     <div class="actionable-box-actions" data-section="friend-accept-actions" hidden>

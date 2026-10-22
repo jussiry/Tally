@@ -1,7 +1,7 @@
 /*
 This module renders the friends list page. It sorts friendship rows, formats tally and trust summaries, and binds navigation to each friend's detail view.
 
-It also owns the add-friend button behavior and keeps accepted, pending, and rejected friendships visually distinct so the list remains useful after realtime friend requests are introduced.
+It also owns the add-friend button behavior and keeps accepted, pending, and rejected friendships visually distinct so the list remains useful after realtime friend requests are introduced. Disabled friendships (after a default) get their own faded list at the bottom.
 @category ui
 */
 
@@ -15,6 +15,7 @@ import {
   FRIENDSHIP_STATUS_REJECTED,
   hasActionableNotification,
   isAcceptedFriendshipStatus,
+  isDisabledFriendshipStatus,
 } from "../../js/utils/friendships.js";
 
 const formatTallyWithLimit = (tallyValue, trustLimitValue) => {
@@ -52,7 +53,11 @@ const getPendingTrustLimit = (friend) => {
 };
 
 const getFriendRowState = (friend) => {
-  if (isAcceptedFriendshipStatus(friend.friendship_status)) {
+  // A disabled row looks like an active one; the section fades it.
+  if (
+    isAcceptedFriendshipStatus(friend.friendship_status) ||
+    isDisabledFriendshipStatus(friend.friendship_status)
+  ) {
     const tallyValue = friend.debt_eur || 0;
     return {
       amountHtml: formatTallyWithLimit(
@@ -225,7 +230,16 @@ export const bindFriends = (root, data) => {
     const cancelInitialSync = scheduleAfterLayout(syncAddFriendButton);
   }
 
-  const sortedFriends = [...data.friends].sort((leftFriend, rightFriend) => {
+  const disabledSectionEl = root.querySelector('[data-section="disabled-friends"]');
+  const disabledListEl = root.querySelector('[data-list="disabled-friends"]');
+  const activeFriends = data.friends.filter(
+    (friend) => !isDisabledFriendshipStatus(friend.friendship_status)
+  );
+  const disabledFriends = data.friends
+    .filter((friend) => isDisabledFriendshipStatus(friend.friendship_status))
+    .sort(compareFriendNames);
+
+  const sortedFriends = [...activeFriends].sort((leftFriend, rightFriend) => {
     const sortWeightDifference =
       getFriendSortWeight(leftFriend) - getFriendSortWeight(rightFriend);
     if (sortWeightDifference !== 0) {
@@ -246,7 +260,7 @@ export const bindFriends = (root, data) => {
     return compareFriendNames(leftFriend, rightFriend);
   });
 
-  sortedFriends.forEach((friend) => {
+  const renderFriendRow = (friend) => {
     const node = friendTemplate.content.firstElementChild.cloneNode(true);
     const nameEl = node.querySelector('[data-bind="name"]');
     const amountEl = node.querySelector('[data-bind="amount"]');
@@ -273,6 +287,13 @@ export const bindFriends = (root, data) => {
       }
     }
 
-    listContainer.appendChild(node);
-  });
+    return node;
+  };
+
+  sortedFriends.forEach((friend) => listContainer.appendChild(renderFriendRow(friend)));
+
+  if (disabledSectionEl && disabledListEl) {
+    disabledListEl.replaceChildren(...disabledFriends.map(renderFriendRow));
+    disabledSectionEl.hidden = disabledFriends.length === 0;
+  }
 };

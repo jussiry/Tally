@@ -12,3 +12,4 @@ export * from "./transaction.js";
 export * from "./payment-request.js";
 export * from "./user.js";
 export * from "./notification-prefs.js";
+export * from "./friendship-default.js";

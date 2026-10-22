@@ -79,9 +79,19 @@
       <dt id="friendship-status" data-files="js/utils/friendships.js js/models/data-model.ts"><a class="term-self" href="#friendship-status">Friendship status</a></dt>
       <dd>Where a friendship stands, from the local user's point of view:
         <code>pending_outgoing</code> (you asked), <code>pending_incoming</code>
-        (they asked), <code>accepted</code>, or <code>rejected</code>. Only an
+        (they asked), <code>accepted</code>, <code>rejected</code>, or
+        <code>disabled</code> (after a <a href="#default">default</a>). Only an
         accepted friendship is a <a href="#friend">friend</a> in the everyday
         sense.</dd>
+
+      <dt id="default" data-files="js/commands/friendship-default.js js/peer/handlers.js js/ledger.ts"><a class="term-self" href="#default">Default, Disabled friendship, Reactivation</a></dt>
+      <dd>Openly giving up on a friendship's tally (or absolving it, or just
+        deactivating a zero tally), with an optional note. Both sides keep the
+        friendship <em>disabled</em>: records visible as history, counted in no
+        total, no new activity. Either side can suggest
+        <em>reactivation</em>, which sends its signed copy of the history
+        along. Deleting the history is final for the side that does it. See
+        <a href="friendship-default.html">Defaulting</a>.</dd>
 
       <dt id="contact" data-files="js/models/data-model.ts js/utils/friendships.js"><a class="term-self" href="#contact">Contact</a></dt>
       <dd>A cached public identity (npub + display name) of a person the client

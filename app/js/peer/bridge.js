@@ -17,7 +17,10 @@ import {
   createLedgerEntryModel,
   createPeerMessageModel,
 } from "../models/data-model.js";
-import { isPeerEligibleFriendshipStatus } from "../utils/friendships.js";
+import {
+  isDisabledFriendshipStatus,
+  isPeerEligibleFriendshipStatus,
+} from "../utils/friendships.js";
 import { asTrimmedString, hasUser } from "../state-utils.js";
 import { buildView } from "../ui/view-model.js";
 import {
@@ -31,7 +34,12 @@ import {
   markProcessedPeerMessage,
   removeQueuedPeerMessage,
 } from "./outbox.js";
-import { findFriend, getFriend, syncUserNameAcrossContacts } from "../friends-helpers.js";
+import {
+  deleteFriendHistory,
+  findFriend,
+  getFriend,
+  syncUserNameAcrossContacts,
+} from "../friends-helpers.js";
 import { createKeyProviderFromState } from "../crypto/key-provider.js";
 import { getMainRelayUrl } from "../utils/relay-url.js";
 import {
@@ -42,9 +50,11 @@ import {
 import {
   appendLedgerEntryFromMessage,
   hasValidLedgerValues,
+  isDeletedHistoryEntry,
   mergeSyncedLedgerEntries,
 } from "../ledger.js";
 import {
+  PEER_MESSAGE_TYPE_HISTORY_DELETED,
   PEER_MESSAGE_TYPE_RECEIVED,
   PEER_RECEIPT_RESULT_IGNORED,
   PEER_RECEIPT_RESULT_PROCESSED,
@@ -119,11 +129,30 @@ export const addLedgerEntries = async (entries) => {
   const state = await loadState();
   if (!hasUser(state)) return 0;
 
+  const knownIds = new Set(state.ledger.map((entry) => entry.id));
   const added = await mergeSyncedLedgerEntries(state, entries);
   if (added > 0) {
+    applyHistoryDeletions(
+      state,
+      state.ledger.filter((entry) => !knownIds.has(entry.id))
+    );
     await persistAndBuildView(state);
   }
   return added;
+};
+
+// History deletions made on another device of this user arrive as
+// self-addressed entries; repeat them here. A friend reactivated since then
+// keeps their history.
+const applyHistoryDeletions = (state, entries) => {
+  entries.forEach((entry) => {
+    if (entry.type !== PEER_MESSAGE_TYPE_HISTORY_DELETED) return;
+    if (entry.from_user_id !== state.user.id) return;
+    const friendId = entry.payload?.friend_id;
+    const friend = getFriend(state, friendId);
+    if (friend && !isDisabledFriendshipStatus(friend.friendship_status)) return;
+    deleteFriendHistory(state, friendId, { upTo: entry.originated_at || entry.timestamp });
+  });
 };
 
 // Like addLedgerEntries, but also applies outbound entries to user-connection
@@ -142,7 +171,9 @@ export const addOutboundLedgerEntries = async (entries) => {
   // Drop entries with impossible values up front, so they are neither stored
   // nor applied. The merge re-checks this; the filter also guards the replay
   // loop below, which runs over entries the merge skipped as already stored.
-  const validEntries = entries.filter(hasValidLedgerValues);
+  const validEntries = entries.filter(
+    (entry) => hasValidLedgerValues(entry) && !isDeletedHistoryEntry(state, entry)
+  );
   const added = await mergeSyncedLedgerEntries(state, validEntries);
 
   // Apply every entry regardless of whether it was newly added — the
@@ -319,6 +350,12 @@ export const applyInboundPeerMessage = async (incomingMessage) => {
       buildView(state),
       PEER_RECEIPT_RESULT_PROCESSED
     );
+  }
+
+  // History the user deleted stays deleted, even when another device or the
+  // friend replays it (see isDeletedHistoryEntry).
+  if (isDeletedHistoryEntry(state, message)) {
+    return createInboundProcessingResult(buildView(state), PEER_RECEIPT_RESULT_IGNORED);
   }
 
   // Append the ledger entry first. From this point on, state changes are a

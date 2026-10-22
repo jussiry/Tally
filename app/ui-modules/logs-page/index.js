@@ -16,7 +16,13 @@ import {
 import { isAnyRelayConnected } from "../../js/signaling/relay-status-registry.js";
 import { initInfiniteList } from "../../js/ui/infinite-list.js";
 import { getOsNotifyTypes } from "../../js/notify/notification-policy.js";
-import { PEER_MESSAGE_TYPE_NOTIFICATION_PREFS } from "../../js/peer/messages.js";
+import {
+  PEER_MESSAGE_TYPE_FRIENDSHIP_DEFAULT,
+  PEER_MESSAGE_TYPE_HISTORY_DELETED,
+  PEER_MESSAGE_TYPE_NOTIFICATION_PREFS,
+  PEER_MESSAGE_TYPE_REACTIVATION_REQUEST,
+  PEER_MESSAGE_TYPE_REACTIVATION_RESPONSE,
+} from "../../js/peer/messages.js";
 
 const formatEur = (amount) => {
   const value = Number(amount);
@@ -78,6 +84,41 @@ const formatLedgerEntry = (entry, myId, namesById, context = {}) => {
       return isOutgoing
         ? `You cancelled your payment request to ${peerName}`
         : `${peerName} cancelled their payment request`;
+    case PEER_MESSAGE_TYPE_FRIENDSHIP_DEFAULT: {
+      // tally_eur is from the author's side: negative means the author owed.
+      const tally = Number(payload.tally_eur) || 0;
+      const amount = formatEur(Math.abs(tally));
+      const note = payload.note ? ` — ${payload.note}` : "";
+      if (isOutgoing) {
+        const action =
+          tally < 0 ? `You defaulted on ${amount} with ${peerName}`
+          : tally > 0 ? `You absolved ${peerName}'s tally of ${amount}`
+          : `You deactivated your friend connection to ${peerName}`;
+        return action + note;
+      }
+      const action =
+        tally < 0 ? `${peerName} defaulted on ${amount}`
+        : tally > 0 ? `${peerName} absolved your tally of ${amount}`
+        : `${peerName} deactivated your friend connection`;
+      return action + note;
+    }
+    case PEER_MESSAGE_TYPE_REACTIVATION_REQUEST:
+      return isOutgoing
+        ? `You suggested reactivating your friendship with ${peerName}`
+        : `${peerName} suggested reactivating your friendship`;
+    case PEER_MESSAGE_TYPE_REACTIVATION_RESPONSE: {
+      const accepted = payload.accepted === true;
+      if (isOutgoing) {
+        return accepted
+          ? `You reactivated your friendship with ${peerName}`
+          : `You declined reactivating your friendship with ${peerName}`;
+      }
+      return accepted
+        ? `${peerName} reactivated your friendship`
+        : `${peerName} declined reactivating your friendship`;
+    }
+    case PEER_MESSAGE_TYPE_HISTORY_DELETED:
+      return "You deleted your history with a disabled friend";
     case "name_changed": {
       const newName = payload.name || "";
       if (isOutgoing) {

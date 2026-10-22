@@ -7,15 +7,24 @@ data so that page binders never need to compute these values themselves.
 */
 
 import { createPublicPersonModel } from "../models/data-model.js";
-import { isAcceptedFriendshipStatus } from "../utils/friendships.js";
+import {
+  isAcceptedFriendshipStatus,
+  isDisabledFriendshipStatus,
+} from "../utils/friendships.js";
 import { getMainRelayUrl } from "../utils/relay-url.js";
 import { getRelayStatus } from "../signaling/relay-status-registry.js";
-import { getOpenPaymentRequests } from "../ledger.js";
+import {
+  getLatestFriendshipDefaults,
+  getOpenPaymentRequests,
+  getOpenReactivationRequests,
+} from "../ledger.js";
 
 export const buildView = (state) => {
   const user = state.user;
   const friends = Array.isArray(user.friends) ? user.friends : [];
   const openPaymentRequests = getOpenPaymentRequests(state.ledger, user.id);
+  const latestDefaults = getLatestFriendshipDefaults(state.ledger, user.id);
+  const openReactivations = getOpenReactivationRequests(state.ledger, user.id);
 
   const friendsWithInbound = friends.map((friend) => {
     const contact = state.contacts?.[friend.person_id];
@@ -27,6 +36,13 @@ export const buildView = (state) => {
       pending_payment_requests: isAcceptedFriendshipStatus(friend.friendship_status)
         ? openPaymentRequests.get(friend.person_id) ?? []
         : [],
+      // A disabled friend's page shows the default and any open suggestion.
+      default_info: isDisabledFriendshipStatus(friend.friendship_status)
+        ? latestDefaults.get(friend.person_id) ?? null
+        : null,
+      pending_reactivation: isDisabledFriendshipStatus(friend.friendship_status)
+        ? openReactivations.get(friend.person_id) ?? null
+        : null,
     };
   });
 

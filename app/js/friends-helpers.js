@@ -24,6 +24,7 @@ import { appendLedgerEntryFromMessage } from "./ledger.js";
 import { asTrimmedString, hasUser } from "./state-utils.js";
 import {
   FRIENDSHIP_STATUS_ACCEPTED,
+  FRIENDSHIP_STATUS_DISABLED,
   FRIENDSHIP_STATUS_PENDING_INCOMING,
   FRIENDSHIP_STATUS_PENDING_OUTGOING,
 } from "./utils/friendships.js";
@@ -187,6 +188,37 @@ export const removeFriendRelationshipData = (state, friendId) => {
       message.from_user_id !== normalizedFriendId
     );
   });
+};
+
+// Disable a friendship after a default. The records stay for the history
+// view; open suggestions and notices about the friend no longer apply.
+export const disableFriend = (friend) => {
+  friend.friendship_status = FRIENDSHIP_STATUS_DISABLED;
+  friend.pending_credit_limit_eur = null;
+  friend.pending_credit_limit_is_incoming = null;
+  friend.pending_name_change = null;
+};
+
+// Forget a disabled friend: their record, contact, queued messages, and the
+// ledger entries between the two dated up to `upTo` (all when omitted). The
+// record survives only when newer entries remain, e.g. a reactivation
+// suggestion that arrived after the deletion on another device.
+export const deleteFriendHistory = (state, friendId, { upTo = "" } = {}) => {
+  const normalizedFriendId = asTrimmedString(friendId);
+  if (!normalizedFriendId || !hasUser(state)) return false;
+  const myId = state.user.id;
+  const concernsFriend = (entry) =>
+    (entry.from_user_id === myId && entry.to_user_id === normalizedFriendId) ||
+    (entry.from_user_id === normalizedFriendId && entry.to_user_id === myId);
+  const origin = (entry) => entry.originated_at || entry.timestamp || "";
+  const before = state.ledger.length;
+  state.ledger = state.ledger.filter(
+    (entry) => !concernsFriend(entry) || (upTo && origin(entry) > upTo)
+  );
+  if (!state.ledger.some(concernsFriend)) {
+    removeFriendRelationshipData(state, normalizedFriendId);
+  }
+  return state.ledger.length !== before;
 };
 
 export const cancelPendingFriendRequest = async (

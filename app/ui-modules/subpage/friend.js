@@ -2,6 +2,8 @@
 This module binds the friend detail subpage. It renders tally/trust summary cards, injects friend-specific labels, and lists recent transactions.
 
 It also exposes navigation triggers to related subpages by wiring the trust tile click target from the current friend context.
+
+A disabled friendship (after a default) shows its records read-only as history, with the default notice on top, a way to suggest or answer reactivation, and a button to delete the history (commands/friendship-default.js).
 @category ui
 */
 
@@ -21,11 +23,18 @@ import {
 } from "../../js/commands/payment-request.js";
 import { dismissNameChangeNotification } from "../../js/commands/user.js";
 import {
+  defaultOnFriendship,
+  deleteDisabledFriendHistory,
+  respondToReactivation,
+  suggestReactivation,
+} from "../../js/commands/friendship-default.js";
+import {
   FRIENDSHIP_STATUS_ACCEPTED,
   FRIENDSHIP_STATUS_PENDING_INCOMING,
   FRIENDSHIP_STATUS_PENDING_OUTGOING,
   FRIENDSHIP_STATUS_REJECTED,
   isAcceptedFriendshipStatus,
+  isDisabledFriendshipStatus,
 } from "../../js/utils/friendships.js";
 import { formatCurrency, formatDate, formatSigned } from "../../js/ui/format.js";
 import { createFriendIcon, setFriendIconStatus } from "../components/friend-icon.js";
@@ -33,6 +42,86 @@ import { initInfiniteList } from "../../js/ui/infinite-list.js";
 import { getConnectedPeerIds, getServerPresentPeerIds } from "../../js/peer/status.js";
 import { showConfirmModal } from "../components/confirm-modal.js";
 import { isSameRelayUrl } from "../../js/utils/relay-url.js";
+
+const formatDefaultDate = (iso) => {
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return parsed.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+};
+
+// The default notice, from this user's side. tally_eur is the author's tally
+// at the time: negative when the author owed.
+const describeDefault = (info, friendName) => {
+  if (!info) return "This friend connection is disabled.";
+  const amount = formatCurrency(info.tally_eur);
+  const date = formatDefaultDate(info.created_at);
+  const text = info.is_mine
+    ? info.tally_eur < 0
+      ? `You defaulted on ${amount}`
+      : info.tally_eur > 0
+      ? `You absolved ${friendName}'s tally of ${amount}`
+      : "You deactivated this friend connection"
+    : info.tally_eur < 0
+    ? `${friendName} defaulted on ${amount}`
+    : info.tally_eur > 0
+    ? `${friendName} absolved your tally of ${amount}`
+    : `${friendName} deactivated this friend connection`;
+  return date ? `${text} on ${date}.` : `${text}.`;
+};
+
+const renderDisabledFriendship = (root, { friend, friendId, friendName, friendFirstName, isDisabled }) => {
+  const infoEl = root.querySelector('[data-section="default-info"]');
+  const requestEl = root.querySelector('[data-section="reactivation-request"]');
+  if (!isDisabled || !infoEl || !friendId) return;
+
+  const textEl = infoEl.querySelector('[data-bind="default-info-text"]');
+  const noteEl = infoEl.querySelector('[data-bind="default-info-note"]');
+  const statusEl = infoEl.querySelector('[data-bind="reactivation-status"]');
+  const suggestButton = infoEl.querySelector('[data-action="suggest-reactivation"]');
+  const info = friend?.default_info;
+  const pending = friend?.pending_reactivation;
+
+  infoEl.hidden = false;
+  textEl.textContent = describeDefault(info, friendName);
+  noteEl.textContent = info?.note ? `“${info.note}”` : "";
+  noteEl.hidden = !info?.note;
+
+  if (pending?.is_incoming && requestEl) {
+    requestEl.hidden = false;
+    requestEl.querySelector('[data-bind="reactivation-request-label"]').textContent =
+      `${friendFirstName} suggests reactivating your friendship`;
+    requestEl.querySelector('[data-action="accept-reactivation"]').addEventListener("click", async () => {
+      const confirmed = await showConfirmModal({
+        title: "Reactivate friendship",
+        body: `Your friendship with ${friendName} becomes active again, and your historic records count in your total tally again.`,
+        confirmLabel: "Reactivate",
+        variant: "success",
+      });
+      if (!confirmed) return;
+      requestEl.hidden = true;
+      await respondToReactivation(friendId, pending.id, true);
+    });
+    requestEl.querySelector('[data-action="decline-reactivation"]').addEventListener("click", async () => {
+      requestEl.hidden = true;
+      await respondToReactivation(friendId, pending.id, false);
+    });
+  } else if (pending) {
+    statusEl.hidden = false;
+    statusEl.textContent = `Reactivation suggested to ${friendFirstName}`;
+  } else if (suggestButton) {
+    suggestButton.hidden = false;
+    suggestButton.addEventListener("click", async () => {
+      const confirmed = await showConfirmModal({
+        title: "Suggest reactivation",
+        body: `If ${friendName} accepts, your friendship and your historic records are reactivated and count in your total tally again.\n\nYour copy of the records goes along with the suggestion, in case ${friendFirstName} no longer has theirs.`,
+        confirmLabel: "Suggest",
+        variant: "success",
+      });
+      if (!confirmed) return;
+      await suggestReactivation(friendId);
+    });
+  }
+};
 
 export const bindFriendDetail = (root, data, friendId) => {
   const titleEl = root.querySelector('[data-bind="page-title"]');
@@ -72,14 +161,20 @@ export const bindFriendDetail = (root, data, friendId) => {
   const tally = friend?.debt_eur || 0;
   const isOnline = getConnectedPeerIds().includes(friendId);
   const isRelay = !isOnline && getServerPresentPeerIds().includes(friendId);
-  const friendDangerActionLabel =
-    tally > 0 ? "Absolve tally" : tally < 0 ? "Default on tally" : "Deactivate friend connection";
-  const friendDangerBody =
-    tally > 0
-      ? `${friendName} currently **owes you ${Math.abs(tally)} €**. This action will absolve ${friendName} and also deactivate your friend connection, stopping any activity between you two.\n\nIf you want to reset the tally without deactivating the connection, you can do this by sending them €${Math.abs(tally)}.\n\nIt is still possible to reactivate the friend connection and this tally later, if both of you agree to do so.`
-      : tally < 0
-      ? `You currently **owe {friendName} ${Math.abs(tally)} €**. Resetting the tally can damage you friendship badly. It is strongly recommended to talk this through with ${friendName} before taking this step.\n\nThis action also stops any activity between you two. Though if both of you agree, the friend connection and current tally can be reactivated later.`
-      : `With this action, you deactivate your friend connection to ${friendName}, stopping any activity between you two. The record history will remain visible on this page.\n\nThe friend connection can be reactivated later if both of you agree to do so.`;
+  const isDisabled = isDisabledFriendshipStatus(friendshipStatus);
+  // Accepted and disabled friendships both have records to show.
+  const hasRecords = isAcceptedFriendshipStatus(friendshipStatus) || isDisabled;
+  const tallyText = formatCurrency(tally);
+  const friendDangerActionLabel = isDisabled
+    ? "Delete history"
+    : tally > 0 ? "Absolve tally" : tally < 0 ? "Default on tally" : "Deactivate friend connection";
+  const friendDangerBody = isDisabled
+    ? `This deletes your records with ${friendName} from this device and your other devices. **After this you can't restore the friendship yourself.**\n\nIf ${friendName} keeps their copy, they can still suggest reactivating it, and their copy of the records comes back with the suggestion.`
+    : tally > 0
+    ? `${friendName} currently **owes you ${tallyText}**. This action will absolve ${friendName} and also deactivate your friend connection, stopping any activity between you two.\n\nIf you want to reset the tally without deactivating the connection, you can do this by sending them ${tallyText}.\n\nIt is still possible to reactivate the friend connection and this tally later, if both of you agree to do so.`
+    : tally < 0
+    ? `You currently **owe ${friendName} ${tallyText}**. Resetting the tally can damage your friendship badly. It is strongly recommended to talk this through with ${friendName} before taking this step.\n\nThis action also stops any activity between you two. Though if both of you agree, the friend connection and current tally can be reactivated later.`
+    : `With this action, you deactivate your friend connection to ${friendName}, stopping any activity between you two. The record history will remain visible on this page.\n\nThe friend connection can be reactivated later if both of you agree to do so.`;
 
   if (titleEl) {
     titleEl.textContent = friendName;
@@ -92,16 +187,37 @@ export const bindFriendDetail = (root, data, friendId) => {
 
   if (friendKeyLabelEl) friendKeyLabelEl.textContent = `${friendFirstName}'s key`;
   if (friendDangerLabelEl) friendDangerLabelEl.textContent = friendDangerActionLabel;
-  if (friendDangerButton) {
+  // Only accepted and disabled friendships have a danger action; pending
+  // requests have their own buttons.
+  if (friendDangerButton) friendDangerButton.hidden = !hasRecords;
+  if (friendDangerButton && hasRecords && friendId) {
     friendDangerButton.addEventListener("click", async () => {
-      await showConfirmModal({
+      if (isDisabled) {
+        const confirmed = await showConfirmModal({
+          title: friendDangerActionLabel,
+          body: friendDangerBody,
+          confirmLabel: friendDangerActionLabel,
+        });
+        if (!confirmed) return;
+        await deleteDisabledFriendHistory(friendId);
+        window.location.hash = "friends";
+        return;
+      }
+      const note = await showConfirmModal({
         title: friendDangerActionLabel,
         body: friendDangerBody,
         confirmLabel: friendDangerActionLabel,
-        confirmButtonLabel: friendDangerActionLabel,
+        textInput: {
+          label: `Message to ${friendFirstName} (optional)`,
+          placeholder: "Sent along with the notice",
+        },
       });
+      if (note === null) return;
+      await defaultOnFriendship(friendId, note);
     });
   }
+
+  renderDisabledFriendship(root, { friend, friendId, friendName, friendFirstName, isDisabled });
 
   if (syncInfoEl && syncTimeEl) {
     if (friend?.last_synced_at) {
@@ -131,7 +247,9 @@ export const bindFriendDetail = (root, data, friendId) => {
     }
   }
   if (labelEl) {
-    labelEl.textContent = isAcceptedFriendshipStatus(friendshipStatus)
+    labelEl.textContent = isDisabled
+      ? `Historic records with ${friendFirstName}`
+      : isAcceptedFriendshipStatus(friendshipStatus)
       ? `My records with ${friendFirstName}`
       : `Friendship with ${friendFirstName}`;
   }
@@ -153,6 +271,10 @@ export const bindFriendDetail = (root, data, friendId) => {
     } else if (friendshipStatus === FRIENDSHIP_STATUS_REJECTED) {
       headerRight.innerHTML = `
         <span class="friend-status-chip surface-box">Rejected</span>
+      `;
+    } else if (isDisabled) {
+      headerRight.innerHTML = `
+        <span class="friend-status-chip surface-box">Disabled</span>
       `;
     }
   }
@@ -192,14 +314,16 @@ export const bindFriendDetail = (root, data, friendId) => {
     trustButton.setAttribute("aria-disabled", "true");
   }
   if (tallyLabelEl) {
-    if (isAcceptedFriendshipStatus(friendshipStatus)) {
+    if (isDisabled) {
+      tallyLabelEl.textContent = tally >= 0 ? "owed you" : "you owed";
+    } else if (isAcceptedFriendshipStatus(friendshipStatus)) {
       tallyLabelEl.textContent = tally >= 0 ? "owes you" : "you owe";
     } else {
       tallyLabelEl.textContent = "Friendship";
     }
   }
   if (tallyAmountEl) {
-    if (isAcceptedFriendshipStatus(friendshipStatus)) {
+    if (hasRecords) {
       tallyAmountEl.textContent = formatSigned(tally);
       tallyAmountEl.classList.toggle("pos", tally >= 0);
       tallyAmountEl.classList.toggle("neg", tally < 0);
@@ -388,7 +512,7 @@ export const bindFriendDetail = (root, data, friendId) => {
   if (!bodyEl || !listEl || !txTemplate) return;
   listEl.innerHTML = "";
 
-  if (!isAcceptedFriendshipStatus(friendshipStatus)) {
+  if (!hasRecords) {
     const statusBodyText =
       friendshipStatus === FRIENDSHIP_STATUS_PENDING_INCOMING
         ? "This friend request is waiting for your decision."

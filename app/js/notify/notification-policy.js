@@ -46,11 +46,14 @@ import {
   PEER_MESSAGE_TYPE_FRIEND_ACCEPT,
   PEER_MESSAGE_TYPE_FRIEND_REJECT,
   PEER_MESSAGE_TYPE_FRIEND_REQUEST,
+  PEER_MESSAGE_TYPE_FRIENDSHIP_DEFAULT,
   PEER_MESSAGE_TYPE_NAME_CHANGED,
   PEER_MESSAGE_TYPE_NOTIFICATION_PREFS,
   PEER_MESSAGE_TYPE_PAYMENT_REQUEST,
   PEER_MESSAGE_TYPE_PAYMENT_REQUEST_CANCEL,
   PEER_MESSAGE_TYPE_PAYMENT_REQUEST_RESPONSE,
+  PEER_MESSAGE_TYPE_REACTIVATION_REQUEST,
+  PEER_MESSAGE_TYPE_REACTIVATION_RESPONSE,
   PEER_MESSAGE_TYPE_TRANSACTION_CREATED,
   PEER_MESSAGE_TYPE_TRUST_LIMIT_SUGGESTION,
 } from "../peer/messages.js";
@@ -62,7 +65,8 @@ const APP_NAME = "Tally";
 // both answers to a payment request — and switches them together; the
 // published choice is still a plain list of types, so regrouping settings
 // never changes the wire format. The three settings that were OS-notifiable
-// before per-type choice existed stay on by default; the rest are opt-in.
+// before per-type choice existed stay on by default, as does a friendship
+// being disabled or reactivated (rare, and it matters); the rest are opt-in.
 export const OS_NOTIFY_SETTINGS = [
   { label: "Money received", types: [PEER_MESSAGE_TYPE_TRANSACTION_CREATED], defaultEnabled: true },
   { label: "Payment requested", types: [PEER_MESSAGE_TYPE_PAYMENT_REQUEST], defaultEnabled: true },
@@ -76,6 +80,15 @@ export const OS_NOTIFY_SETTINGS = [
     label: "Friend request response",
     types: [PEER_MESSAGE_TYPE_FRIEND_ACCEPT, PEER_MESSAGE_TYPE_FRIEND_REJECT],
     defaultEnabled: false,
+  },
+  {
+    label: "Friendship disabled or reactivated",
+    types: [
+      PEER_MESSAGE_TYPE_FRIENDSHIP_DEFAULT,
+      PEER_MESSAGE_TYPE_REACTIVATION_REQUEST,
+      PEER_MESSAGE_TYPE_REACTIVATION_RESPONSE,
+    ],
+    defaultEnabled: true,
   },
   { label: "Trust limit changes", types: [PEER_MESSAGE_TYPE_TRUST_LIMIT_SUGGESTION], defaultEnabled: false },
   { label: "Friend changed name", types: [PEER_MESSAGE_TYPE_NAME_CHANGED], defaultEnabled: false },
@@ -167,6 +180,26 @@ const HINT_BUILDERS = {
     if (!Number.isFinite(limit) || limit < 0) return null;
     return hint(`${senderName}: trust limit ${formatCurrency(limit)}`);
   },
+  // The tally is worded from the sender's side here; the recipient's toast
+  // words it from theirs.
+  [PEER_MESSAGE_TYPE_FRIENDSHIP_DEFAULT]: (message, senderName) => {
+    const tally = Number(message.payload?.tally_eur) || 0;
+    return hint(
+      tally < 0
+        ? `${senderName} defaulted on ${formatCurrency(-tally)}`
+        : tally > 0
+        ? `${senderName} absolved your tally of ${formatCurrency(tally)}`
+        : `${senderName} deactivated your friend connection`
+    );
+  },
+  [PEER_MESSAGE_TYPE_REACTIVATION_REQUEST]: (message, senderName) =>
+    hint(`${senderName} suggests reactivating your friendship`),
+  [PEER_MESSAGE_TYPE_REACTIVATION_RESPONSE]: (message, senderName) =>
+    hint(
+      message.payload?.accepted === true
+        ? `${senderName} reactivated your friendship`
+        : `${senderName} declined reactivating your friendship`
+    ),
   [PEER_MESSAGE_TYPE_NAME_CHANGED]: (message) => {
     const name = typeof message.payload?.name === "string" ? message.payload.name.trim() : "";
     return name ? hint(`A friend is now called ${name}`) : null;

@@ -46,6 +46,11 @@ const BUILT_IN_SCENARIOS = {
     "scenarios",
     "self-relay-sync.cjs"
   ),
+  "friendship-default": path.join(
+    __dirname,
+    "scenarios",
+    "friendship-default.cjs"
+  ),
 };
 
 const parseArgs = (argv) => {

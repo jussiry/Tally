@@ -7,6 +7,19 @@
   gap: 14px;
 }
 
+.friends-disabled {
+  margin-top: 32px;
+}
+
+.friends-disabled[hidden] {
+  display: none;
+}
+
+/* Same rows as active friends, faded: history only, no activity. */
+.friends-disabled .friend-row {
+  opacity: 0.55;
+}
+
 .friends-add-inline {
   display: flex;
   justify-content: flex-end;

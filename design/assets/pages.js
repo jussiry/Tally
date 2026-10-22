@@ -32,6 +32,7 @@ window.DESIGN_PAGES = [
 
   { group: "P2P", href: "p2p.html", title: "P2P", status: "reference" },
   { group: "P2P", href: "spec-ledger.html", title: "Ledger", status: "reference" },
+  { group: "P2P", href: "friendship-default.html", title: "Defaulting", status: "implemented" },
   { group: "P2P", href: "spec-data-storage.html", title: "Data storage", status: "reference" },
   { group: "P2P", href: "communication.html", title: "Communication", status: "reference" },
   { group: "P2P", href: "spec-peer-communication.html", title: "Peer communication", status: "reference" },

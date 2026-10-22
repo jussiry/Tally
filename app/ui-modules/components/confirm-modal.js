@@ -12,6 +12,10 @@ Usage:
   });
   if (ok) doDestructiveThing();
 
+Pass `textInput: { label, placeholder }` to add an optional free-text field
+(e.g. a note sent along with the action). The promise then resolves with the
+trimmed text (possibly "") on confirm and null on cancel, instead of a boolean.
+
 The modal mounts to document.body, traps the focus on the cancel button by default, closes on Esc / backdrop click (treated as cancel), and resolves with a boolean indicating confirmation.
 @category ui
 */
@@ -39,6 +43,7 @@ export const showConfirmModal = ({
   holdMs = DEFAULT_HOLD_MS,
   // 'danger' (default, red) | 'success' (green)
   variant = "danger",
+  textInput = null,
 } = {}) => {
   return new Promise((resolve) => {
     const backdrop = createElement("div", "confirm-modal-backdrop", {
@@ -60,6 +65,24 @@ export const showConfirmModal = ({
       const bodyEl = createElement("div", "confirm-modal-body");
       bodyEl.innerHTML = formatMarkdownish(body);
       dialog.appendChild(bodyEl);
+    }
+
+    let inputEl = null;
+    if (textInput) {
+      const field = createElement("label", "confirm-modal-field");
+      if (textInput.label) {
+        const labelEl = createElement("span", "confirm-modal-field-label");
+        labelEl.textContent = textInput.label;
+        field.appendChild(labelEl);
+      }
+      inputEl = createElement("textarea", "confirm-modal-input", {
+        rows: "3",
+        maxlength: "500",
+        placeholder: textInput.placeholder || "",
+        "data-bind": "confirm-modal-input",
+      });
+      field.appendChild(inputEl);
+      dialog.appendChild(field);
     }
 
     const actions = createElement("div", "confirm-modal-actions");
@@ -92,7 +115,8 @@ export const showConfirmModal = ({
       document.removeEventListener("keydown", onKeyDown);
       backdrop.classList.add("confirm-modal-closing");
       setTimeout(() => backdrop.remove(), 150);
-      resolve(result);
+      if (inputEl) resolve(result ? inputEl.value.trim() : null);
+      else resolve(result);
     };
 
     const onKeyDown = (e) => {

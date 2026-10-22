@@ -25,6 +25,7 @@ import {
   cancelPendingFriendRequest,
   ensureContact,
   ensureContactBackLink,
+  disableFriend,
   ensureFriend,
   getDisplayName,
   getFriend,
@@ -38,20 +39,30 @@ import {
   PEER_MESSAGE_TYPE_FRIEND_ACCEPT,
   PEER_MESSAGE_TYPE_FRIEND_REJECT,
   PEER_MESSAGE_TYPE_FRIEND_REQUEST,
+  PEER_MESSAGE_TYPE_FRIENDSHIP_DEFAULT,
   PEER_MESSAGE_TYPE_NAME_CHANGED,
   PEER_MESSAGE_TYPE_NOTIFICATION_PREFS,
   PEER_MESSAGE_TYPE_PAYMENT_REQUEST,
   PEER_MESSAGE_TYPE_PAYMENT_REQUEST_RESPONSE,
   PEER_MESSAGE_TYPE_PAYMENT_REQUEST_CANCEL,
+  PEER_MESSAGE_TYPE_REACTIVATION_REQUEST,
+  PEER_MESSAGE_TYPE_REACTIVATION_RESPONSE,
   PEER_MESSAGE_TYPE_TRANSACTION_CREATED,
 } from "./messages.js";
+import {
+  deriveTallyFromLedger,
+  mergeVerifiedEntries,
+  verifyReactivationHistory,
+} from "../ledger.js";
 import { asTrimmedString, createId } from "../state-utils.js";
 import {
   FRIENDSHIP_STATUS_ACCEPTED,
+  FRIENDSHIP_STATUS_DISABLED,
   FRIENDSHIP_STATUS_PENDING_INCOMING,
   FRIENDSHIP_STATUS_PENDING_OUTGOING,
   FRIENDSHIP_STATUS_REJECTED,
   isAcceptedFriendshipStatus,
+  isDisabledFriendshipStatus,
   isPeerEligibleFriendshipStatus,
 } from "../utils/friendships.js";
 
@@ -100,7 +111,12 @@ const applyInboundFriendRequest = async (state, entry) => {
     return friendNotification(`${requesterName} is now your friend`, entry.from_user_id);
   }
 
-  if (isAcceptedFriendshipStatus(existingFriend?.friendship_status)) {
+  // A disabled friendship comes back only through a reactivation suggestion,
+  // never a fresh request that would revive the old tally unannounced.
+  if (
+    isAcceptedFriendshipStatus(existingFriend?.friendship_status) ||
+    isDisabledFriendshipStatus(existingFriend?.friendship_status)
+  ) {
     return null;
   }
 
@@ -149,7 +165,10 @@ const applyInboundFriendAccept = async (state, entry) => {
     if (!friend) return null;
     ensureContactBackLink(state, entry.from_user_id, accepterName);
   }
-  if (friend.friendship_status === FRIENDSHIP_STATUS_REJECTED) {
+  if (
+    friend.friendship_status === FRIENDSHIP_STATUS_REJECTED ||
+    isDisabledFriendshipStatus(friend.friendship_status)
+  ) {
     return null;
   }
 
@@ -376,6 +395,106 @@ const applyInboundTransactionCreated = (state, entry) => {
   return friendNotification(`${displayName} sent €${amount.toFixed(2)} to you`, entry.from_user_id);
 };
 
+// Defaulting disables the friendship on both sides; the tally text is worded
+// from this user's side. A default crossing our own is still recorded, so
+// both appear in the ledger.
+const applyInboundFriendshipDefault = (state, entry) => {
+  const friend = getFriend(state, entry.from_user_id);
+  if (
+    !friend ||
+    !(isAcceptedFriendshipStatus(friend.friendship_status) ||
+      isDisabledFriendshipStatus(friend.friendship_status))
+  ) {
+    return null;
+  }
+  disableFriend(friend);
+
+  const displayName = getDisplayName(state, entry.from_user_id);
+  const tally = friend.debt_eur || 0;
+  const text =
+    tally > 0
+      ? `${displayName} defaulted on ${formatCurrency(tally)}`
+      : tally < 0
+      ? `${displayName} absolved your tally of ${formatCurrency(-tally)}`
+      : `${displayName} deactivated your friend connection`;
+  return friendNotification(text, entry.from_user_id);
+};
+
+// A reactivation suggestion carries the requester's copy of the shared
+// history. Every entry is verified (ledger.ts verifyReactivationHistory) and
+// merged, so a user who deleted the history gets it back — first as a
+// disabled friend with the rebuilt tally, active again only once they accept.
+const applyInboundReactivationRequest = async (state, entry) => {
+  const requesterId = entry.from_user_id;
+  if (!asTrimmedString(entry.payload?.request_id)) return null;
+  let friend = getFriend(state, requesterId);
+  if (friend && !isDisabledFriendshipStatus(friend.friendship_status)) return null;
+
+  const history = await verifyReactivationHistory(entry.payload?.history, requesterId, state.user.id);
+  if (!history) {
+    console.warn("[LedgerEntry] Rejected reactivation request with unverifiable history:", entry.id);
+    return null;
+  }
+
+  const isRestored = !friend;
+  if (!friend) {
+    const requesterName = asTrimmedString(entry.payload?.requester_name) || requesterId;
+    friend = ensureFriend(state, requesterId, requesterName, {
+      friendshipStatus: FRIENDSHIP_STATUS_DISABLED,
+    });
+    if (!friend) return null;
+    ensureContactBackLink(state, requesterId, requesterName);
+    const limit = normalizeCurrencyAmount(entry.payload?.trust_credit_limit_eur, NaN);
+    if (Number.isFinite(limit) && limit >= 0) friend.trust_credit_limit_eur = limit;
+  }
+
+  const added = mergeVerifiedEntries(state, history);
+  // Rebuild the tally when the history was gone, or when it brought records
+  // this side never applied (e.g. one sent while the default was in flight).
+  const addedRecords = added > 0 && history.some(
+    (record) =>
+      record.type === PEER_MESSAGE_TYPE_TRANSACTION_CREATED &&
+      !friend.recent_transactions.some(
+        (tx) => tx.id === (asTrimmedString(record.payload?.transaction_id) || record.id)
+      )
+  );
+  if (isRestored || addedRecords) {
+    Object.assign(friend, deriveTallyFromLedger(state.ledger, state.user.id, requesterId));
+  }
+
+  return friendNotification(
+    `${getDisplayName(state, requesterId)} suggests reactivating your friendship`,
+    requesterId,
+  );
+};
+
+const hasOwnReactivationRequest = (state, friendId, requestId) =>
+  state.ledger.some(
+    (entry) =>
+      entry.type === PEER_MESSAGE_TYPE_REACTIVATION_REQUEST &&
+      entry.from_user_id === state.user.id &&
+      entry.to_user_id === friendId &&
+      entry.payload?.request_id === requestId
+  );
+
+const applyInboundReactivationResponse = async (state, entry) => {
+  const requestId = asTrimmedString(entry.payload?.request_id);
+  const friend = getFriend(state, entry.from_user_id);
+  if (!requestId || !friend || !isDisabledFriendshipStatus(friend.friendship_status)) return null;
+  if (!hasOwnReactivationRequest(state, entry.from_user_id, requestId)) return null;
+
+  const displayName = getDisplayName(state, entry.from_user_id);
+  if (entry.payload?.accepted !== true) {
+    return friendNotification(`${displayName} declined reactivating your friendship`, entry.from_user_id);
+  }
+  friend.friendship_status = FRIENDSHIP_STATUS_ACCEPTED;
+  await shareOsNotifyTypesWith(state, entry.from_user_id);
+  return friendNotification(
+    `${displayName} accepted — your friendship is active again`,
+    entry.from_user_id,
+  );
+};
+
 const createInboundProcessingResult = (view, acknowledgeResult = null) => {
   return {
     acknowledgeResult,
@@ -414,6 +533,12 @@ export const routeInboundEntry = async (state, entry) => {
       return applyInboundNameChanged(state, entry);
     case PEER_MESSAGE_TYPE_NOTIFICATION_PREFS:
       return applyInboundNotificationPrefs(state, entry);
+    case PEER_MESSAGE_TYPE_FRIENDSHIP_DEFAULT:
+      return applyInboundFriendshipDefault(state, entry);
+    case PEER_MESSAGE_TYPE_REACTIVATION_REQUEST:
+      return await applyInboundReactivationRequest(state, entry);
+    case PEER_MESSAGE_TYPE_REACTIVATION_RESPONSE:
+      return await applyInboundReactivationResponse(state, entry);
     default:
       warnIllegalPeerEntry(entry);
       return null;
@@ -458,6 +583,9 @@ const applyOutboundFriendAccept = (state, entry) => {
       friendshipStatus: FRIENDSHIP_STATUS_ACCEPTED,
     });
     changed = !!friend;
+  } else if (isDisabledFriendshipStatus(friend.friendship_status)) {
+    // An old accept replayed by sync must not undo a later default.
+    return false;
   } else if (friend.friendship_status !== FRIENDSHIP_STATUS_ACCEPTED) {
     friend.friendship_status = FRIENDSHIP_STATUS_ACCEPTED;
     changed = true;
@@ -550,6 +678,22 @@ const applyOutboundCreditLimitSuggestion = (state, entry) => {
   return true;
 };
 
+const applyOutboundFriendshipDefault = (state, entry) => {
+  const friend = getFriend(state, asTrimmedString(entry.to_user_id));
+  if (!friend || !isAcceptedFriendshipStatus(friend.friendship_status)) return false;
+  disableFriend(friend);
+  return true;
+};
+
+// Accepting a friend's reactivation suggestion on this or another device.
+const applyOutboundReactivationResponse = (state, entry) => {
+  if (entry.payload?.accepted !== true) return false;
+  const friend = getFriend(state, asTrimmedString(entry.to_user_id));
+  if (!friend || !isDisabledFriendshipStatus(friend.friendship_status)) return false;
+  friend.friendship_status = FRIENDSHIP_STATUS_ACCEPTED;
+  return true;
+};
+
 /**
  * Apply an outbound ledger entry (authored by this user, sent to a peer) to
  * local app state. The mutation is identical whether the entry was just
@@ -575,6 +719,11 @@ export const routeOutboundEntry = (state, entry) => {
     // state is derived from the ledger, so there is nothing to mutate.
     case PEER_MESSAGE_TYPE_TRUST_LIMIT_SUGGESTION:
       return applyOutboundCreditLimitSuggestion(state, entry);
+    case PEER_MESSAGE_TYPE_FRIENDSHIP_DEFAULT:
+      return applyOutboundFriendshipDefault(state, entry);
+    // A reactivation request changes nothing until it is answered.
+    case PEER_MESSAGE_TYPE_REACTIVATION_RESPONSE:
+      return applyOutboundReactivationResponse(state, entry);
     default:
       return false;
   }
