@@ -66,12 +66,12 @@ const APP_NAME = "Tally";
 export const OS_NOTIFY_SETTINGS = [
   { label: "Money received", types: [PEER_MESSAGE_TYPE_TRANSACTION_CREATED], defaultEnabled: true },
   { label: "Payment requested", types: [PEER_MESSAGE_TYPE_PAYMENT_REQUEST], defaultEnabled: true },
-  { label: "Friend request", types: [PEER_MESSAGE_TYPE_FRIEND_REQUEST], defaultEnabled: true },
   {
     label: "Payment request response",
     types: [PEER_MESSAGE_TYPE_PAYMENT_REQUEST_RESPONSE, PEER_MESSAGE_TYPE_PAYMENT_REQUEST_CANCEL],
     defaultEnabled: false,
   },
+  { label: "Friend request", types: [PEER_MESSAGE_TYPE_FRIEND_REQUEST], defaultEnabled: true },
   {
     label: "Friend request response",
     types: [PEER_MESSAGE_TYPE_FRIEND_ACCEPT, PEER_MESSAGE_TYPE_FRIEND_REJECT],
