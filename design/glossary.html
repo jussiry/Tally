@@ -45,7 +45,7 @@
         (WebRTC, STUN, Nostr…) appear only when crucial and used in a
         project-specific way.</li>
       <li><strong>Scope is the Tally app only</strong> (<code>app/</code>,
-        <code>server/</code>, <code>tests/</code>, <code>TIPs/</code>).
+        <code>server/</code>, <code>tests/</code>).
         <code>GraphEditor/</code> and <code>web/</code> are separate projects and
         are not covered.</li>
       <li>Definitions are <em>definitional</em>, not implementation docs — what a
@@ -130,7 +130,7 @@
         <a href="#payment-route">route</a> of friends: Alice owes Bob, Bob owes
         Charlie, and Bob ends up neutral. All-or-nothing, as one multi-party
         record that every participant signs, the payer last. Not implemented
-        yet; see <a href="tip-007-routed-payments.html">TIP-007</a>. The website
+        yet; see <a href="tip-7-routed-payments.html">TIP-7</a>. The website
         calls one a <em>current</em> (currency flowing friend to friend); the
         app says payments <em>flow friend to friend</em>. Formerly "chained
         transaction".</dd>
@@ -140,7 +140,7 @@
         travels along, payer to payee (Alice → Bob → Charlie). Each step between
         two friends is a <em>hop</em>, and every hop must have enough
         <a href="#available-trust">available trust</a>. A
-        <a href="tip-002-circular-cancellation.html">circular cancellation</a>
+        <a href="tip-2-circular-cancellation.html">circular cancellation</a>
         runs along a cycle: a path that closes back on itself. Not the UI
         <a href="#route">route</a>. Formerly "chain".</dd>
 
@@ -209,7 +209,7 @@
       <dd>A user's choice of which events reach them as OS notifications, sent to
         friends as a <code>notification_prefs</code> ledger message; the latest one
         wins. It stores only the settings the user switched; the rest follow
-        their defaults, also for types added later. See <a href="tip-005-os-notifications.html">TIP-005</a>.</dd>
+        their defaults, also for types added later. See <a href="tip-5-os-notifications.html">TIP-5</a>.</dd>
     </dl>
 
     <h2>State &amp; rendering</h2>
@@ -248,13 +248,13 @@
         from one friend onward through you while you can't be reached. Unlike
         the informal <a href="#trust-limit">trust limit</a> it is consumed by
         use and never refills. See
-        <a href="tip-009-offline-intermediaries.html">TIP-009</a>.</dd>
+        <a href="tip-9-offline-intermediaries.html">TIP-9</a>.</dd>
 
       <dt id="checkpoint"><a class="term-self" href="#checkpoint">Checkpoint</a></dt>
       <dd>Proposed: a record both friends co-sign stating the balance between
         them and exactly which transactions it covers, after which the history
         before it need never be forwarded again. Trust limits are not part of
-        it. See <a href="tip-008-bilateral-checkpoints.html">TIP-008</a>.</dd>
+        it. See <a href="tip-8-bilateral-checkpoints.html">TIP-8</a>.</dd>
 
       <dt id="model-version" data-files="js/models/data-model.ts js/storage/migrations.ts"><a class="term-self" href="#model-version">Model version, migration</a></dt>
       <dd><code>DATA_MODEL_VERSION</code> stamps the shape of the persisted root
@@ -342,14 +342,14 @@
       <dd>Which <a href="#keyprovider">KeyProvider</a> a user's identity uses:
         <code>local</code> (private key stored in the app) or <code>nip07</code>
         (key held in a browser extension). Stored on the user record and not
-        secret. See <a href="tip-006-external-nostr-key-storage.html">TIP-006</a>.</dd>
+        secret. See <a href="tip-6-external-nostr-key-storage.html">TIP-6</a>.</dd>
 
       <dt id="schnorr" data-files="js/crypto/secp256k1.js js/crypto/nostr-event.js"><a class="term-self" href="#schnorr">Schnorr / secp256k1</a></dt>
       <dd>The signature scheme and curve behind Nostr identities and
         <a href="#authorship">authorship proofs</a>.</dd>
 
       <dt id="tip"><a class="term-self" href="#tip">TIP</a></dt>
-      <dd>Tally Improvement Proposal: a design document under <code>TIPs/</code>.
+      <dd>Tally Improvement Proposal: a design page in the TIPs group of Design.
         See the <a href="tips.html">TIPs index</a> for the implemented-vs-draft
         convention.</dd>
     </dl>

@@ -38,7 +38,7 @@ const cloneState = (state: PersistedState): PersistedState => {
   return JSON.parse(JSON.stringify(state)) as PersistedState;
 };
 
-// v4 (TIP-006): wrap each pre-existing bare top-level `signature` in a
+// v4 (TIP-6): wrap each pre-existing bare top-level `signature` in a
 // `tally-canonical-schnorr-v1` authorship proof so the new verification path
 // (`verifyTallyAuthorship`) accepts already-stored ledger entries and queued
 // outbox messages — that path reads `authorship.signature`, never the top-level

@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>TIP-006 External Nostr key storage — Design</title>
+  <title>TIP-6 External Nostr key storage — Design</title>
   <link rel="stylesheet" href="assets/design.css" />
 </head>
 <body>
   <main class="page" data-status="implemented"
     data-files="js/crypto/key-provider.js js/crypto/nip44.js js/crypto/nip49.js js/crypto/nostr-event.js js/crypto/canonical.js js/crypto/peer-crypto.js js/peer/authorship.js js/peer/envelope.js js/utils/nostr-keys.js">
-<h1>TIP-006: External Nostr Key Storage</h1>
-<div class="table-scroll"><table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody><tr><td>Number</td><td>TIP-006</td></tr><tr><td>Title</td><td>External Nostr Key Storage</td></tr><tr><td>Status</td><td>Implemented (layers 1–5)</td></tr><tr><td>Author</td><td>Jussi Rytkönen</td></tr><tr><td>Created</td><td>2026-06-05</td></tr></tbody></table></div>
-<blockquote><p><strong>Context:</strong> The KeyProvider abstraction, <code>authorship</code> proofs and legacy signature migration, NIP-44 v2 transport (envelope v3 with v2 decrypt drain), and <strong>NIP-07</strong> browser-extension support are implemented and verified — including a successful real-signer test against nos2x. This document is the record of that implemented design. The remaining layer — <strong>NIP-46 remote signers and NIP-55 Android signers</strong> — is not implemented; its design continues in <code>../TIP-006-remote-signers.md</code>.</p></blockquote>
+<h1>TIP-6: External Nostr Key Storage</h1>
+<div class="table-scroll"><table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody><tr><td>Number</td><td>TIP-6</td></tr><tr><td>Title</td><td>External Nostr Key Storage</td></tr><tr><td>Status</td><td>Implemented (layers 1–5)</td></tr><tr><td>Author</td><td>Jussi Rytkönen</td></tr><tr><td>Created</td><td>2026-06-05</td></tr></tbody></table></div>
+<blockquote><p><strong>Context:</strong> The KeyProvider abstraction, <code>authorship</code> proofs and legacy signature migration, NIP-44 v2 transport (envelope v3 with v2 decrypt drain), and <strong>NIP-07</strong> browser-extension support are implemented and verified — including a successful real-signer test against nos2x. This document is the record of that implemented design. The remaining layer — <strong>NIP-46 remote signers and NIP-55 Android signers</strong> — is not implemented; its design continues in <code>../TIP-6-remote-signers.md</code>.</p></blockquote>
 <hr />
 <h2>Summary</h2>
 <p>Tally should support external Nostr key storage as an optional identity backend while keeping the existing IndexedDB-stored local key flow. Users who prefer browser extensions, remote signers, or native signer apps can bring an existing Nostr key without revealing the private key to Tally.</p>
@@ -294,7 +294,7 @@ authorship.scheme === "tally-canonical-schnorr-v1"  // legacy, verify-only, neve
 <ul><li>detect <code>window.nostr</code> and offer it as a key option,</li><li>call the standard methods and surface a non-blocking "waiting for your signer…" state while a call is pending,</li><li>handle rejection/timeout gracefully (the action fails cleanly; nothing is half-applied).</li></ul>
 <p>There is <strong>no Tally-drawn signing dialog</strong> for NIP-07 — the extension is the trusted UI. Tally must not try to reproduce or wrap it.</p>
 <h3>NIP-46 remote signer / NIP-55 native signer</h3>
-<p>Not implemented. These signers and their pending-state / approval-batching UX are covered in the continuation doc <code>../TIP-006-remote-signers.md</code>.</p>
+<p>Not implemented. These signers and their pending-state / approval-batching UX are covered in the continuation doc <code>../TIP-6-remote-signers.md</code>.</p>
 <h3>Onboarding / welcome page</h3>
 <p>Today the welcome page only offers "create a new identity" (and transfer/restore). It should mention that <strong>external Nostr key storage is possible</strong> — a user can bring an existing Nostr identity via a browser extension or remote signer instead of letting Tally hold the key.</p>
 <p>For this first phase the copy stays <strong>general and forward-looking</strong>, since the external providers are not yet verified on real signers:</p>
@@ -303,7 +303,7 @@ authorship.scheme === "tally-canonical-schnorr-v1"  // legacy, verify-only, neve
 <hr />
 <h2>Recommendation</h2>
 <p>External keys were implemented in layers:</p>
-<ol><li>✅ Add the <code>KeyProvider</code> abstraction (local provider only) while keeping behavior unchanged; route all signing/encryption through it.</li><li>✅ Add <code>authorship</code> as the single ledger/peer-message proof field; migrate legacy <code>signature</code> → <code>authorship{scheme:"tally-canonical-schnorr-v1"}</code> (verify-only); add Tally-specific Nostr signing events (<code>tally-nostr-event-v1</code>) as the path for all new durable messages.</li><li>✅ Stop requiring durable signatures for sync transport messages and receipts.</li><li>✅ Add NIP-44 v2 to the local provider and the SW bundle; introduce envelope v3 (NIP-44 send-only, v2 decrypt as drain). Verify against NIP-44 official test vectors.</li><li>✅ Add NIP-07 support (detect <code>window.nostr</code>, key-option in onboarding, pending-state UX) and the general welcome-page mention of external key storage. Test against nos2x.</li><li>⬜ Add NIP-46/NIP-55 where the app environment supports them, with explicit approval/pending UX and signature batching. <strong>Not implemented — see <code>../TIP-006-remote-signers.md</code>.</strong></li></ol>
+<ol><li>✅ Add the <code>KeyProvider</code> abstraction (local provider only) while keeping behavior unchanged; route all signing/encryption through it.</li><li>✅ Add <code>authorship</code> as the single ledger/peer-message proof field; migrate legacy <code>signature</code> → <code>authorship{scheme:"tally-canonical-schnorr-v1"}</code> (verify-only); add Tally-specific Nostr signing events (<code>tally-nostr-event-v1</code>) as the path for all new durable messages.</li><li>✅ Stop requiring durable signatures for sync transport messages and receipts.</li><li>✅ Add NIP-44 v2 to the local provider and the SW bundle; introduce envelope v3 (NIP-44 send-only, v2 decrypt as drain). Verify against NIP-44 official test vectors.</li><li>✅ Add NIP-07 support (detect <code>window.nostr</code>, key-option in onboarding, pending-state UX) and the general welcome-page mention of external key storage. Test against nos2x.</li><li>⬜ Add NIP-46/NIP-55 where the app environment supports them, with explicit approval/pending UX and signature batching. <strong>Not implemented — see <code>../TIP-6-remote-signers.md</code>.</strong></li></ol>
 <p>This keeps Tally's ledger clean, preserves minimal transport metadata, uses one encryption scheme and one new-entry signing scheme, and makes external Nostr key storage an additive capability rather than a rewrite of the app around public Nostr event transport.</p>
   </main>
   <script src="assets/pages.js"></script>

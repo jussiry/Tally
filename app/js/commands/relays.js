@@ -45,7 +45,7 @@ export const addRelay = async (rawUrl) => {
 
 // Toggle whether to share our relay list with friends. Currently this only
 // persists the flag — the actual `my_relays` peer message exchange is
-// deferred to when the relay-pool transport ships (TIP-003 §10).
+// deferred to when the relay-pool transport ships (TIP-3 §10).
 export const setShareMyRelays = async (value) => {
   const state = await loadState();
   if (!state) return null;

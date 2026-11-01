@@ -813,6 +813,8 @@
   // adds a heading; clearing the textarea entirely deletes the block. Only
   // prose blocks are click-to-edit entry points; dt/dd (glossary) are left out
   // because their term-self links don't round-trip through plain markdown.
+  // Anything inside [data-no-edit] is skipped too: a page's own widget (the
+  // TODO page's draggable list) built by script, whose markup isn't authored.
   var EDIT_BLOCK_SELECTOR = "p, h1, h2, h3, h4, h5, h6, ul, ol, blockquote";
   var pageFile = here + ".html";
 
@@ -822,6 +824,7 @@
     main.addEventListener("click", function (e) {
       if (active) return;
       if (e.target.closest("a, button, input, textarea, select, summary, label, .graph-open-btn")) return;
+      if (e.target.closest("[data-no-edit]")) return;
       var sel = window.getSelection && window.getSelection();
       if (sel && String(sel).length) return; // don't hijack a text selection
       var block = e.target.closest(EDIT_BLOCK_SELECTOR);

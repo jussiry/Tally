@@ -12,12 +12,11 @@
 <p>A <strong>TIP</strong> is a design document for a non-trivial change to Tally: it captures the motivation, the design, the trade-offs considered, and the implementation plan for a feature before (and while) it is built. TIPs are the project's durable design record — the place to understand <em>why</em> something works the way it does, not just <em>how</em>.</p>
 <p>Each TIP has a header table with a <strong>Status</strong> (<code>Draft</code>, <code>Implemented</code>, …), a number, and an author. A TIP number can span more than one document when a feature ships in phases (see the implemented/unimplemented split below).</p>
 <h2>Implemented vs. unimplemented</h2>
-<p>Documents are organized by what has actually shipped:</p>
-<ul><li><strong><code>TIPs/</code></strong> (this folder) holds TIPs — or the <strong>parts of a TIP</strong> — that are <strong>not yet implemented</strong>: drafts, and the still-pending phases of a feature whose earlier phases have already landed.</li><li><strong><code>TIPs/implemented/</code></strong> holds the design records for work that <strong>is implemented and verified</strong>. Moving a doc here marks the design as done and preserves it as the canonical record of what was built.</li></ul>
+<p>Each TIP is a page in this group, written directly as HTML. Its status in <code>design/assets/pages.js</code> (and the page's <code>data-status</code>) says whether it has shipped: <code>proposal</code> for drafts and pending phases, <code>implemented</code> for work that is built and verified. The <a href="tips-todo.html">TODO</a> page ranks the proposals by importance.</p>
 <h3>Splitting a phased TIP</h3>
-<p>When a TIP ships in layers, we <strong>split it</strong> rather than move the whole thing:</p>
-<ol><li>The implemented design moves to <code>implemented/</code> (Status → <code>Implemented</code>), with a short context banner noting which layers are done and pointing to the continuation.</li><li>A continuation doc stays in <code>TIPs/</code> covering only the <strong>unimplemented</strong> phases, with its own context banner pointing back to the implemented base.</li></ol>
-<p>This keeps <code>implemented/</code> an accurate record of shipped work while the root folder always reflects what is still outstanding.</p>
+<p>When a TIP ships in layers, we <strong>split it</strong> rather than mark the whole thing:</p>
+<ol><li>The implemented design keeps the number and becomes <code>implemented</code>, with a short context banner noting which layers are done and pointing to the continuation.</li><li>A continuation page with the same number and "(cont.)" covers only the <strong>unimplemented</strong> phases, with its own banner pointing back to the implemented base.</li></ol>
+<p>Numbers have no leading zeros: TIP-1, TIP-12. A new TIP takes the next free number.</p>
   </main>
   <script src="assets/pages.js"></script>
   <script src="assets/design.js"></script>

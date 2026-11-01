@@ -92,7 +92,7 @@ export const isNip07Available = () =>
 // extension. The user's own public key is captured at account creation and
 // passed back in here so `getPublicKeyHex` stays synchronous.
 //
-// Only the operations TIP-006 actually needs are supported: signEvent (Nostr
+// Only the operations TIP-6 actually needs are supported: signEvent (Nostr
 // authorship proofs) and NIP-44 v2 peer encryption. The legacy AES-GCM
 // transport (envelope v2) and bare canonical-digest signing have no NIP-07
 // equivalent, so they throw — a NIP-07 account never produced v2 envelopes and

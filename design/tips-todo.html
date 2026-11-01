@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TODO — Design</title>
+  <link rel="stylesheet" href="assets/design.css" />
+  <style>
+    .todo-list { list-style: none; margin: 18px 0 0; padding: 0; }
+    .todo-item {
+      display: flex; gap: 12px; align-items: baseline;
+      margin: 0 0 6px; padding: 8px 12px;
+      background: var(--panel); border: 1px solid var(--border-2); border-radius: 8px;
+      user-select: none; touch-action: pan-y;
+    }
+    .todo-rank { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 1.5em; }
+    .todo-body { min-width: 0; line-height: 1.4; }
+    .todo-body a { font-weight: 600; text-decoration: none; }
+    .todo-summary { display: block; color: var(--muted); font-size: 13.5px; }
+    .todo-list.can-drag .todo-item { cursor: grab; touch-action: none; }
+    .todo-item.dragging {
+      cursor: grabbing; position: relative; z-index: 1;
+      border-color: var(--link); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    }
+    .todo-item:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+    .todo-status { min-height: 1.4em; color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+  <main class="page" data-status="reference">
+    <h1>TODO</h1>
+    <p>Every <a href="tips.html">TIP</a> not yet implemented, most important first. On the local Design server (<code>npm run dev:design</code>) the boxes can be dragged, or moved with Alt+↑/↓, and the order is saved to <code>design/assets/tip-order.js</code>.</p>
+    <ol class="todo-list" id="todo-list" data-no-edit=""></ol>
+    <p class="todo-status" id="todo-status" aria-live="polite" data-no-edit=""></p>
+  </main>
+  <script src="assets/pages.js"></script>
+  <script src="assets/tip-order.js"></script>
+  <script src="assets/design.js"></script>
+  <script>
+    /*
+     * Builds the TODO list from pages.js (every TIP with status "proposal") in
+     * the order from tip-order.js. Reordering is on only where the Design dev
+     * server injected DESIGN_AUTHORING, since only it can save the new order.
+     */
+    (function () {
+      var list = document.getElementById("todo-list");
+      var status = document.getElementById("todo-status");
+      var canDrag = window.DESIGN_AUTHORING === true;
+
+      var tips = (window.DESIGN_PAGES || []).filter(function (p) {
+        return p.group === "TIPs" && p.status === "proposal";
+      });
+      var order = window.TIP_ORDER || [];
+      var rank = function (p) {
+        var i = order.indexOf(p.href);
+        return i === -1 ? order.length + tips.indexOf(p) : i;
+      };
+      tips.sort(function (a, b) { return rank(a) - rank(b); });
+
+      tips.forEach(function (p) {
+        var li = document.createElement("li");
+        li.className = "todo-item";
+        li.dataset.href = p.href;
+        li.innerHTML =
+          '<span class="todo-rank"></span><span class="todo-body"><a></a>' +
+          '<span class="todo-summary"></span></span>';
+        li.querySelector("a").href = p.href;
+        li.querySelector("a").textContent = p.title;
+        li.querySelector(".todo-summary").textContent = p.summary || "";
+        if (canDrag) li.tabIndex = 0;
+        list.appendChild(li);
+      });
+
+      var renumber = function () {
+        Array.prototype.forEach.call(list.children, function (li, i) {
+          li.querySelector(".todo-rank").textContent = i + 1 + ".";
+        });
+      };
+      renumber();
+      if (!canDrag) return;
+      list.classList.add("can-drag");
+
+      var save = function () {
+        var hrefs = Array.prototype.map.call(list.children, function (li) { return li.dataset.href; });
+        status.textContent = "Saving…";
+        fetch("/api/tip-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ order: hrefs }),
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (res) {
+            if (!res.ok) throw new Error(res.error);
+            window.TIP_ORDER = hrefs;
+            status.textContent = "Order saved.";
+          })
+          .catch(function (e) { status.textContent = "Not saved: " + e.message; });
+      };
+
+      // Pointer drag: the box follows the pointer and swaps with a neighbour once
+      // its centre passes the neighbour's middle. A press that never moves stays
+      // a click, so the title link still opens the TIP.
+      var drag = null;
+      list.addEventListener("pointerdown", function (e) {
+        var li = e.target.closest(".todo-item");
+        if (!li || e.button !== 0) return;
+        drag = { li: li, startY: e.clientY, offset: 0, moved: false, id: e.pointerId };
+      });
+      list.addEventListener("pointermove", function (e) {
+        if (!drag || e.pointerId !== drag.id) return;
+        var dy = e.clientY - drag.startY;
+        if (!drag.moved) {
+          if (Math.abs(dy) < 5) return;
+          drag.moved = true;
+          drag.li.classList.add("dragging");
+          list.setPointerCapture(e.pointerId);
+        }
+        var li = drag.li;
+        li.style.transform = "translateY(" + (dy - drag.offset) + "px)";
+        var box = li.getBoundingClientRect();
+        var mid = box.top + box.height / 2;
+        var prev = li.previousElementSibling;
+        var next = li.nextElementSibling;
+        if (prev && mid < prev.getBoundingClientRect().top + prev.offsetHeight / 2) {
+          var shift = prev.offsetHeight + 6;
+          list.insertBefore(li, prev);
+          drag.offset -= shift;
+        } else if (next && mid > next.getBoundingClientRect().top + next.offsetHeight / 2) {
+          var shiftDown = next.offsetHeight + 6;
+          list.insertBefore(next, li);
+          drag.offset += shiftDown;
+        } else {
+          return;
+        }
+        li.style.transform = "translateY(" + (dy - drag.offset) + "px)";
+        renumber();
+      });
+      var end = function (e) {
+        if (!drag || e.pointerId !== drag.id) return;
+        var d = drag;
+        drag = null;
+        if (!d.moved) return;
+        d.li.classList.remove("dragging");
+        d.li.style.transform = "";
+        // Swallow the click that follows a drag released over the link.
+        justDragged = true;
+        setTimeout(function () { justDragged = false; }, 0);
+        save();
+      };
+      var justDragged = false;
+      list.addEventListener("click", function (e) { if (justDragged) e.preventDefault(); }, true);
+      list.addEventListener("pointerup", end);
+      list.addEventListener("pointercancel", end);
+      list.addEventListener("dragstart", function (e) { e.preventDefault(); });
+
+      list.addEventListener("keydown", function (e) {
+        var li = e.target.closest(".todo-item");
+        if (!li || !e.altKey || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+        e.preventDefault();
+        var other = e.key === "ArrowUp" ? li.previousElementSibling : li.nextElementSibling;
+        if (!other) return;
+        if (e.key === "ArrowUp") list.insertBefore(li, other);
+        else list.insertBefore(other, li);
+        li.focus();
+        renumber();
+        save();
+      });
+    })();
+  </script>
+</body>
+</html>

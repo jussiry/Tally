@@ -3,7 +3,7 @@ A pool of signaling-client connections to multiple relay servers.
 
 Each underlying `createSignalingClient` is a single-relay transport. The pool
 holds N of them in parallel and presents the same callback surface to
-`peer/client.js`. Per TIP-003, the server protocol is idempotent on
+`peer/client.js`. Per TIP-3, the server protocol is idempotent on
 `(userId, deviceId, envelopeId)` triples, so:
 
 - Outbound calls (setSession, requestPeerConnection, sendPeerSignal,

@@ -68,10 +68,10 @@ originatedAt — the peer message's created_at timestamp</code></pre>
   created_at:   entry.originated_at || entry.timestamp,
   payload:      entry.payload || {},
   signature:    entry.signature,      // legacy bare Schnorr, may be ""
-  authorship:   entry.authorship,     // TIP-006 proof, null on old entries
+  authorship:   entry.authorship,     // TIP-6 proof, null on old entries
 }</code></pre>
 <p>Then calls <code>verifyTallyAuthorship(innerShape)</code> from <code>peer/authorship.js</code> — the same check the live envelope path uses, so a record replayed out of the ledger is held to exactly the standard it was held to on arrival. It accepts either proof form:</p>
-<ul><li><strong><code>tally-nostr-event-v1</code></strong> (TIP-006, current) — a signed Nostr event (kind 177700) whose content commits to the canonical inner message.</li><li><strong><code>tally-canonical-schnorr-v1</code></strong> — the legacy bare BIP-340 signature over the canonical digest, wrapped into the proof shape so pre-TIP-006 entries still verify.</li></ul>
+<ul><li><strong><code>tally-nostr-event-v1</code></strong> (TIP-6, current) — a signed Nostr event (kind 177700) whose content commits to the canonical inner message.</li><li><strong><code>tally-canonical-schnorr-v1</code></strong> — the legacy bare BIP-340 signature over the canonical digest, wrapped into the proof shape so pre-TIP-6 entries still verify.</li></ul>
 <p>Both ultimately verify a Schnorr signature against <code>from_user_id</code>'s secp256k1 public key over a canonical JSON serialisation (fixed field order, proof fields excluded) hashed with SHA-256. Returns <code>false</code> when neither proof is present or valid — unproven entries are always rejected during sync.</p>
 <hr />
 <h2>6. Sync Merge</h2>
@@ -148,7 +148,7 @@ signature     = Schnorr over the canonical inner-message digest</code></pre>
 </ol>
 <p>Nobody signs the upcast form. Your own signature over a friend's record would prove only that <em>you</em> vouch for it, which no third party should accept — and locally there is nothing to prove: the record was verified once, on arrival.</p>
 <h3>10.3 When old code can go</h3>
-<p>An upcaster can go once no stored entry uses its version. A <em>verifier</em> must stay as long as old records can still be forwarded to someone who needs to verify them — today, forever. <a href="tip-008-bilateral-checkpoints.html">TIP-008</a> (bilateral checkpoints) is what bounds that: once both friends have co-signed a checkpoint past a record, it is never forwarded again.</p>
+<p>An upcaster can go once no stored entry uses its version. A <em>verifier</em> must stay as long as old records can still be forwarded to someone who needs to verify them — today, forever. <a href="tip-8-bilateral-checkpoints.html">TIP-8</a> (bilateral checkpoints) is what bounds that: once both friends have co-signed a checkpoint past a record, it is never forwarded again.</p>
   </main>
   <script src="assets/pages.js"></script>
   <script src="assets/design.js"></script>

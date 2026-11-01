@@ -36,7 +36,7 @@ envelopes, and retried on reconnection.
 Routed payments — paying someone you don't know through a route of mutual
 friends — are the idea the whole design is aimed at, and are **not implemented
 yet**. See [Purpose](design/purpose.html) for how they work and
-[TIP-007](TIPs/TIP-007-routed-payments.md) for the design in progress.
+[TIP-7](design/tip-7-routed-payments.html) for the design in progress.
 
 ## Documentation
 
@@ -57,7 +57,7 @@ Start with [Overview](design/index.html), or jump to:
 | [Build & runtime](design/build.html) | the build, the service worker, versions |
 
 Non-trivial changes get a **TIP** (Tally Improvement Proposal) under
-[`TIPs/`](TIPs/README.md); implemented ones move to `TIPs/implemented/`.
+[Design](design/tips.html); the [TODO](design/tips-todo.html) page ranks the ones not yet built.
 
 ## Current features
 
@@ -74,9 +74,9 @@ Non-trivial changes get a **TIP** (Tally Improvement Proposal) under
 
 ## Roadmap
 
-- Routed payments ([TIP-007](TIPs/TIP-007-routed-payments.md))
+- Routed payments ([TIP-7](design/tip-7-routed-payments.html))
 - Circular debt cancellation — if A owes B, B owes C, and C owes A, cancel the
-  loop ([TIP-002](TIPs/TIP-002-circular-cancellation.md))
+  loop ([TIP-2](design/tip-2-circular-cancellation.html))
 - Currencies other than euros — anything users agree to transact in
 - A "marketplace": personal exchange rates between currencies
 - Fees on routed payments (see

@@ -354,7 +354,7 @@ export const isDeletedHistoryEntry = (
 // produced the batch — for forwarded or third-party entries we also need this
 // authorship check to trust who actually authored the entry.
 //
-// Accepts either a TIP-006 authorship proof (`tally-nostr-event-v1` /
+// Accepts either a TIP-6 authorship proof (`tally-nostr-event-v1` /
 // `tally-canonical-schnorr-v1`) or, for pre-migration entries, a bare
 // top-level `signature` — `verifyTallyAuthorship` handles both.
 export const verifyLedgerEntryAuthorship = async (

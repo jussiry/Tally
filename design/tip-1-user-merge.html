@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>TIP-001 User merge — Design</title>
+  <title>TIP-1 User merge — Design</title>
   <link rel="stylesheet" href="assets/design.css" />
 </head>
 <body>
   <main class="page" data-status="proposal"
     data-files="js/commands/user.js js/commands/friendship.js js/models/data-model.ts js/peer/authorship.js js/storage/migrations.ts js/utils/nostr-keys.js js/crypto/key-provider.js">
-<h1>TIP-001: User Merge</h1>
-<div class="table-scroll"><table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody><tr><td>Number</td><td>TIP-001</td></tr><tr><td>Title</td><td>User Merge</td></tr><tr><td>Status</td><td>Draft</td></tr><tr><td>Author</td><td>Jussi Rytkönen</td></tr><tr><td>Created</td><td>2026-05-03</td></tr></tbody></table></div>
+<h1>TIP-1: User Merge</h1>
+<div class="table-scroll"><table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody><tr><td>Number</td><td>TIP-1</td></tr><tr><td>Title</td><td>User Merge</td></tr><tr><td>Status</td><td>Draft</td></tr><tr><td>Author</td><td>Jussi Rytkönen</td></tr><tr><td>Created</td><td>2026-05-03</td></tr></tbody></table></div>
 <hr />
 <h2>Summary</h2>
 <p>A mechanism for merging two existing Tally identities — both owned by the same person — into one. The old user's private key is imported into the device running the new user, and used to sign and broadcast a merge announcement to all of the old user's friends. Friends replace the old user connection with the new user. Once all friends have acknowledged, the old identity is fully deprecated.</p>

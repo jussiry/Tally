@@ -39,7 +39,7 @@ default, so a notification added later starts at its default even for users
 who saved their settings before it existed. The entry also carries the
 resolved `enabled` list, which is all that clients older than per-type
 choices read.
-See TIPs/TIP-005-os-notifications.md.
+See design/tip-5-os-notifications.html.
 
 Keeping this mapping separate from the state-mutation handlers (peer/handlers.js)
 means the "what shows where" question has one answer, and adding a new

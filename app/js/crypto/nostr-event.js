@@ -1,7 +1,7 @@
 /*
 Minimal NIP-01 Nostr event helpers — id computation, signing, and verification.
 
-Tally never publishes these events to a public relay (see TIP-006): they exist
+Tally never publishes these events to a public relay (see TIP-6): they exist
 only as *authorship proofs* embedded inside the encrypted peer-message payload.
 But the proof must be a standard, signer-compatible Nostr event so external
 signers (NIP-07/46/55) can produce it with their normal `sign_event` API.

@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>TIP-008 Bilateral checkpoints — Design</title>
+  <title>TIP-8 Bilateral checkpoints — Design</title>
   <link rel="stylesheet" href="assets/design.css" />
 </head>
 <body>
   <main class="page" data-status="proposal"
     data-files="js/ledger.ts js/peer/authorship.js js/peer/client.js js/peer/bridge.js js/peer/handlers.js js/crypto/canonical.js">
-<h1>TIP-008: Bilateral Checkpoints</h1>
-<div class="table-scroll"><table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody><tr><td>Number</td><td>TIP-008</td></tr><tr><td>Title</td><td>Bilateral Checkpoints</td></tr><tr><td>Status</td><td>Draft</td></tr><tr><td>Author</td><td>Jussi Rytkönen</td></tr><tr><td>Created</td><td>2026-10-14</td></tr></tbody></table></div>
+<h1>TIP-8: Bilateral Checkpoints</h1>
+<div class="table-scroll"><table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody><tr><td>Number</td><td>TIP-8</td></tr><tr><td>Title</td><td>Bilateral Checkpoints</td></tr><tr><td>Status</td><td>Draft</td></tr><tr><td>Author</td><td>Jussi Rytkönen</td></tr><tr><td>Created</td><td>2026-10-14</td></tr></tbody></table></div>
 <hr />
 <h2>Summary</h2>
 <p>Two friends periodically co-sign one record — a <strong>checkpoint</strong> — stating the balance between them and exactly which transactions it accounts for. Once a checkpoint exists, the history before it is no longer needed by anyone: the balance starts from the checkpoint, sync starts from the checkpoint, and a recovering device is rebuilt from the checkpoint. The old entries can be archived locally and are never sent to anyone again.</p>
@@ -35,14 +35,14 @@
   created_at:  &lt;timestamp&gt;
 }</code></pre>
 <p><code>balance_eur</code> is the balance <em>after</em> every covered entry, so the checkpoint is self-contained — nobody needs <code>previous</code>'s balance, or anything before it, to read the current one.</p>
-<p><strong>Trust limits are not in it.</strong> A trust limit is an informal statement of willingness, not an obligation: a friend who set a limit that would allow a routed payment can still decline to sign it (TIP-007). Agreeing on a number that binds nobody adds a negotiation without adding certainty. Each side keeps its current trust limit as ordinary local state, and the most recent trust-limit message in each direction is simply kept past the checkpoint (see §What survives a checkpoint).</p>
+<p><strong>Trust limits are not in it.</strong> A trust limit is an informal statement of willingness, not an obligation: a friend who set a limit that would allow a routed payment can still decline to sign it (TIP-7). Agreeing on a number that binds nobody adds a negotiation without adding certainty. Each side keeps its current trust limit as ordinary local state, and the most recent trust-limit message in each direction is simply kept past the checkpoint (see §What survives a checkpoint).</p>
 <p>Nor does a checkpoint carry names, open payment requests, or anything else that is still in motion.</p>
 <hr />
 <h2>Agreeing on a checkpoint</h2>
 <p>The two ledgers are not guaranteed to be identical. A receiver drops an entry it finds inapplicable (<code>applyInboundPeerMessage</code> rolls back the append), and either side may simply not have received something yet. So the checkpoint does not hash "the ledger"; it names an <strong>explicit set</strong> of balance-affecting entries and both sides check that set against their own copy.</p>
 <ol><li><strong>Propose</strong> (ephemeral, like <code>sync_hello</code>). Either side, while both are online, sends <code>checkpoint_propose</code> with the full record minus signatures, plus the covered ids. It covers every balance-affecting entry the proposer holds since <code>previous</code>, except ones newer than a short settling margin, so entries still in flight are left for the next checkpoint rather than causing a mismatch.</li><li><strong>Verify.</strong> The other side recomputes from its own ledger: same <code>previous</code>, same covered set, and the same balance when those entries are applied to <code>previous.balance_eur</code>.</li><li><strong>Sign or decline.</strong> On a match, it signs and returns the record. On a mismatch it declines with the ids it is missing or has extra — which is exactly a sync request; the next proposal then matches.</li><li><strong>Commit.</strong> The proposer adds its signature. The fully-signed record is a durable ledger entry on both sides, and syncs to both users' other devices like any other entry.</li></ol>
-<p>This is the two-party case of TIP-007's multi-party record: one canonical digest, valid if and only if every listed party's signature is present and verifies. The two should share one implementation.</p>
-<p><strong>Signing order doesn't matter.</strong> Whoever signs last can only commit or not. Withholding leaves the pair exactly where they were, and committing late is harmless because the covered set is explicit: anything newer simply isn't in it. So unlike TIP-007, nobody needs to be forced to sign last.</p>
+<p>This is the two-party case of TIP-7's multi-party record: one canonical digest, valid if and only if every listed party's signature is present and verifies. The two should share one implementation.</p>
+<p><strong>Signing order doesn't matter.</strong> Whoever signs last can only commit or not. Withholding leaves the pair exactly where they were, and committing late is harmless because the covered set is explicit: anything newer simply isn't in it. So unlike TIP-7, nobody needs to be forced to sign last.</p>
 <p><strong>When.</strong> Automatically, not by the user: when both are online and either enough covered entries have accumulated or enough time has passed since the last checkpoint. A declined or failed attempt costs nothing and is retried later.</p>
 <p><strong>Balance is computed from the ledger.</strong> Today <code>debt_eur</code> is maintained incrementally by the message handlers. The checkpoint needs a pure function — <em>balance of this relationship = checkpoint balance + Σ covered transactions</em> — that both sides run identically. Writing it is a prerequisite, and it should then become the source of <code>debt_eur</code> rather than a cross-check.</p>
 <hr />
@@ -55,7 +55,7 @@
 <ul><li><strong><code>sync_hello</code></strong> advertises the latest checkpoint id plus the ids after it, instead of every id ever.</li><li><strong>Behind on checkpoints.</strong> A peer whose latest checkpoint is older is sent the newer checkpoint and the entries after it, not the entries the checkpoint replaced.</li><li><strong>Recovery.</strong> A wiped device that reconnects is sent the latest checkpoint and everything live after it, and rebuilds the relationship from that. This is shorter than today's full replay and needs no legacy verifier for anything older than the checkpoint.</li><li><strong>Self-sync.</strong> Checkpoints are ordinary durable entries, so the user's other devices receive them and can archive the same entries.</li></ul>
 <hr />
 <h2>Routed payments</h2>
-<p>Each hop of a routed payment (TIP-007) is an ordinary IOU between two friends, so its effect on each pair's balance is covered by that pair's next checkpoint like any other transaction. The multi-party payment record itself is balance-affecting for every hop that appears in it; it becomes archivable for a given participant once that participant has checkpointed past it with <strong>both</strong> of its neighbours in the route. Until then it stays live, so it can still be produced as evidence if a neighbour disputes the hop.</p>
+<p>Each hop of a routed payment (TIP-7) is an ordinary IOU between two friends, so its effect on each pair's balance is covered by that pair's next checkpoint like any other transaction. The multi-party payment record itself is balance-affecting for every hop that appears in it; it becomes archivable for a given participant once that participant has checkpointed past it with <strong>both</strong> of its neighbours in the route. Until then it stays live, so it can still be produced as evidence if a neighbour disputes the hop.</p>
 <hr />
 <h2>Disputes and evidence</h2>
 <p>Today the evidence for a balance is the set of individually signed IOUs. After a checkpoint it is one record signed by <strong>both</strong> parties — strictly stronger, since it is an explicit agreement on the total rather than a sum the parties must each reconstruct. A user who wants the itemised history anyway keeps their archive; nothing about the protocol depends on it.</p>
@@ -72,7 +72,7 @@
 <ol><li><strong>Thresholds.</strong> How many covered entries, or how much time, before proposing a checkpoint? Probably generous — checkpoints are cheap, but each one is a round trip and a signature request, which matters for NIP-07 signers that prompt the user.</li><li><strong>External signers.</strong> With a NIP-07 extension every checkpoint signature may raise a prompt. Batch checkpoints with other work, or sign them only when the user is otherwise active?</li><li><strong>Absent friends.</strong> After how long, if ever, does a client stop forwarding a silent relationship's history?</li><li><strong>Settling margin.</strong> How old must an entry be before it is eligible for a checkpoint, so concurrent transactions don't cause repeated mismatches?</li><li><strong>Archive by default?</strong> Keep archived entries for the Logs page, or delete them, or let the user choose?</li><li><strong>Currencies.</strong> <code>balance_eur</code> assumes one currency. When other currencies arrive, the checkpoint carries one balance per currency.</li></ol>
 <hr />
 <h2>Implementation notes</h2>
-<ol><li>A pure, shared balance function computed from the ledger, used for checkpoints and as the source of <code>debt_eur</code>.</li><li>The co-signed record primitive — shared with TIP-007, and through it with TIP-002.</li><li><code>checkpoint_propose</code> / decline / commit messages, and checkpoint-aware <code>sync_hello</code>.</li><li>Local archiving, then the first legacy-verifier removal as proof that it works.</li></ol>
+<ol><li>A pure, shared balance function computed from the ledger, used for checkpoints and as the source of <code>debt_eur</code>.</li><li>The co-signed record primitive — shared with TIP-7, and through it with TIP-2.</li><li><code>checkpoint_propose</code> / decline / commit messages, and checkpoint-aware <code>sync_hello</code>.</li><li>Local archiving, then the first legacy-verifier removal as proof that it works.</li></ol>
   </main>
   <script src="assets/pages.js"></script>
   <script src="assets/design.js"></script>

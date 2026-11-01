@@ -37,7 +37,7 @@ export const ReceiptResult = Object.freeze({
 
 // Transport-only message types: live control frames, sync containers, and
 // acknowledgements. These are NOT durable ledger facts, so they carry no
-// authorship proof (TIP-006 §"Sync transport messages"/"Receipts") and are
+// authorship proof (TIP-6 §"Sync transport messages"/"Receipts") and are
 // not authorship-verified on receipt. Everything else is a durable message
 // whose authorship must be proven before it can be applied or stored.
 /** @type {Set<string>} */

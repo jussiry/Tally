@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>TIP-003 Multiple relay servers — Design</title>
+  <title>TIP-3 Multiple relay servers — Design</title>
   <link rel="stylesheet" href="assets/design.css" />
 </head>
 <body>
   <main class="page" data-status="implemented"
     data-files="js/signaling/relay-pool.js js/signaling/relay-status-registry.js js/signaling/socket-client.js js/commands/relays.js js/utils/relay-url.js js/peer/outbox.js js/peer/envelope.js js/peer/bridge.js">
-<h1>TIP-003: Multiple Relay Servers</h1>
-<div class="table-scroll"><table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody><tr><td>Number</td><td>TIP-003</td></tr><tr><td>Title</td><td>Multiple Relay Servers</td></tr><tr><td>Status</td><td>Implemented</td></tr><tr><td>Author</td><td>Jussi Rytkönen</td></tr><tr><td>Created</td><td>2026-05-21</td></tr></tbody></table></div>
-<blockquote><p><strong>Note:</strong> Phase 2 (my_relays peer message exchange) and Phase 3 refinements are tracked in the root TIPs folder as TIP-003-relay-sharing.md.</p></blockquote>
+<h1>TIP-3: Multiple Relay Servers</h1>
+<div class="table-scroll"><table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody><tr><td>Number</td><td>TIP-3</td></tr><tr><td>Title</td><td>Multiple Relay Servers</td></tr><tr><td>Status</td><td>Implemented</td></tr><tr><td>Author</td><td>Jussi Rytkönen</td></tr><tr><td>Created</td><td>2026-05-21</td></tr></tbody></table></div>
+<blockquote><p><strong>Note:</strong> Phase 2 (my_relays peer message exchange) and Phase 3 refinements are tracked in the root TIPs folder as TIP-3-relay-sharing.md.</p></blockquote>
 <hr />
 <h2>Summary</h2>
 <p>Tally clients today connect to a single hardcoded relay (<code>/ws</code> on the server that also serves the app). This TIP describes how a client maintains simultaneous WebSocket connections to <strong>1–5 user-chosen relays</strong>, treats them as interchangeable transports for presence, WebRTC signalling, and offline envelope queueing, and falls back gracefully when one is down. Other Tally clients are not aware of which relays a given user is on — relays are picked locally and overlap with friends' relays opportunistically.</p>
@@ -45,7 +45,7 @@
 <ul><li>5 WebSockets × a few KB of <code>peer_candidates</code> + handshake = ~tens of KB at startup.</li><li>Once connected, ongoing traffic is dominated by application envelopes — and those go through one relay (offline) or zero (online via WebRTC), not all five.</li></ul>
 <p><strong>Recommendation: parallel connect, full registration on every relay.</strong></p>
 <h3>3. Ask all relays for all friends</h3>
-<p>Same reasoning as §2. Each relay independently fires <code>peer_connect</code> for whichever friends it sees online. The pool passes every <code>peer_connect</code> through and lets the mesh collapse duplicates via its composite key <code>(peerUserId, peerDeviceId)</code>, which already exists for multi-device support (TIP-001 era work).</p>
+<p>Same reasoning as §2. Each relay independently fires <code>peer_connect</code> for whichever friends it sees online. The pool passes every <code>peer_connect</code> through and lets the mesh collapse duplicates via its composite key <code>(peerUserId, peerDeviceId)</code>, which already exists for multi-device support (TIP-1 era work).</p>
 <p>If a friend is online on relays {A, C} and not B, the pool receives two <code>peer_connect</code> events for the same <code>(userId, deviceId)</code> pair. The mesh's <code>ensurePeer</code> short-circuits on the second call. No race, no duplicate WebRTC handshake. The pool must <strong>not</strong> swallow a <code>peer_connect</code> just because the peer is already present: relays re-send one when a client asks to re-pair after a dropped WebRTC connection (e.g. wake from suspend), and that is the only way the pair reconnects while both stay registered.</p>
 <p>If a friend disconnects on A, the pool receives a <code>peer_disconnect</code> from A — but only counts the peer as truly offline once <strong>all</strong> relays that previously announced them have reported the disconnect (or have themselves gone down). This requires the pool to track, per <code>(userId, deviceId)</code>, the set of relays that currently report the peer online.</p>
 <p><strong>Recommendation: ask every relay, track per-relay presence, treat the union as truth.</strong></p>
@@ -108,7 +108,7 @@
 <h2>§10 — Telling Friends What Relays You Use (Phase 1)</h2>
 <h3>What shipped</h3>
 <ul><li><code>state.share_my_relays: boolean</code> — defaults to <code>true</code>. User toggles it in settings.</li><li><code>friends[].relays: string[]</code> — schema field in place, ready to receive data from Phase 2.</li><li>Settings toggle bound to the flag: "Tell friends what relays you use".</li></ul>
-<p>Phase 2 (the actual <code>my_relays</code> message exchange) and Phase 3 (refinements) are tracked separately in TIP-003-relay-sharing.md.</p>
+<p>Phase 2 (the actual <code>my_relays</code> message exchange) and Phase 3 (refinements) are tracked separately in TIP-3-relay-sharing.md.</p>
 <hr />
 <h2>Implementation Notes</h2>
 <p><strong>Schema (<code>data-model.ts</code>)</strong></p>

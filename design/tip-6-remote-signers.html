@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>TIP-006 Remote signers (cont.) — Design</title>
+  <title>TIP-6 Remote signers (cont.) — Design</title>
   <link rel="stylesheet" href="assets/design.css" />
 </head>
 <body>
   <main class="page" data-status="proposal"
     data-files="js/crypto/key-provider.js js/crypto/nip44.js js/crypto/nostr-event.js js/peer/authorship.js js/crypto/peer-crypto.js">
-<h1>TIP-006 (cont.): NIP-46 Remote &amp; NIP-55 Native Signers</h1>
-<div class="table-scroll"><table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody><tr><td>Number</td><td>TIP-006</td></tr><tr><td>Title</td><td>Remote &amp; Native Nostr Signers</td></tr><tr><td>Status</td><td>Draft</td></tr><tr><td>Author</td><td>Jussi Rytkönen</td></tr><tr><td>Created</td><td>2026-06-15</td></tr></tbody></table></div>
-<blockquote><p><strong>Context:</strong> The external-key foundation — KeyProvider abstraction, <code>authorship</code> proofs, NIP-44 v2 transport (envelope v3), and <strong>NIP-07</strong> browser-extension support — is implemented and verified; see <code>implemented/TIP-006-external-nostr-key-storage.md</code>. This document covers the one remaining layer: <strong>NIP-46 remote signers</strong> and <strong>NIP-55 Android native signers</strong>. Both slot into the existing <code>KeyProvider</code> seam without changing the rest of the app.</p></blockquote>
+<h1>TIP-6 (cont.): NIP-46 Remote &amp; NIP-55 Native Signers</h1>
+<div class="table-scroll"><table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody><tr><td>Number</td><td>TIP-6</td></tr><tr><td>Title</td><td>Remote &amp; Native Nostr Signers</td></tr><tr><td>Status</td><td>Draft</td></tr><tr><td>Author</td><td>Jussi Rytkönen</td></tr><tr><td>Created</td><td>2026-06-15</td></tr></tbody></table></div>
+<blockquote><p><strong>Context:</strong> The external-key foundation — KeyProvider abstraction, <code>authorship</code> proofs, NIP-44 v2 transport (envelope v3), and <strong>NIP-07</strong> browser-extension support — is implemented and verified; see <code>implemented/TIP-6-external-nostr-key-storage.md</code>. This document covers the one remaining layer: <strong>NIP-46 remote signers</strong> and <strong>NIP-55 Android native signers</strong>. Both slot into the existing <code>KeyProvider</code> seam without changing the rest of the app.</p></blockquote>
 <hr />
 <h2>Summary</h2>
 <p>Add two more <code>KeyProvider</code> implementations alongside <code>local</code> and <code>nip07</code>:</p>

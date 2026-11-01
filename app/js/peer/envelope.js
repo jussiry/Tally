@@ -6,7 +6,7 @@ peers without learning their contents, while the inner message — the original
 peer message model — is encrypted to the recipient's public key.
 
 Durable inner messages (transactions, friend requests, name changes, …) carry a
-Tally *authorship proof* (TIP-006) rather than a bare signature. The proof is a
+Tally *authorship proof* (TIP-6) rather than a bare signature. The proof is a
 signed Nostr event embedded in the encrypted inner blob; it lets a recipient
 verify messages authored by a third party that are forwarded during ledger
 sync — transport encryption alone only proves "someone with the ECDH shared

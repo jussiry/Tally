@@ -54,7 +54,7 @@ export interface FriendModel {
   /**
    * Relay-server URLs this friend has told us they use, to suggest
    * popular-among-friends relays in the add-relay UI. The `my_relays` exchange
-   * that would populate this is TIP-003 phase 2 and is NOT implemented, so in
+   * that would populate this is TIP-3 phase 2 and is NOT implemented, so in
    * practice this is always empty today; the field exists so the schema is
    * ready and `share_my_relays` has something to gate.
    */
@@ -104,7 +104,7 @@ export interface SignedNostrEvent {
 }
 
 /**
- * Authorship proof attached to durable messages and ledger entries (TIP-006).
+ * Authorship proof attached to durable messages and ledger entries (TIP-6).
  * `tally-nostr-event-v1` carries `event`; the legacy `tally-canonical-schnorr-v1`
  * carries `signature`. One field shape, discriminated by `scheme`.
  */
@@ -128,7 +128,7 @@ export interface LedgerEntryModel {
    * code reads `authorship`.
    */
   signature: string;
-  /** Authorship proof (TIP-006). `null` for legacy entries not yet migrated. */
+  /** Authorship proof (TIP-6). `null` for legacy entries not yet migrated. */
   authorship: AuthorshipProof | null;
   payload: Record<string, unknown>;
 }
@@ -141,7 +141,7 @@ export interface PeerMessageModel {
   created_at: string;
   /** Legacy raw signature; retained transitionally. New code reads `authorship`. */
   signature: string;
-  /** Authorship proof (TIP-006). `null` for transport/non-durable messages. */
+  /** Authorship proof (TIP-6). `null` for transport/non-durable messages. */
   authorship: AuthorshipProof | null;
   payload: Record<string, unknown>;
 }
@@ -163,7 +163,7 @@ export interface RootState {
    * Whether to tell friends which relay servers we use, via a `my_relays`
    * peer message exchanged when both sides come online. Defaults to true.
    * The flag is persisted and surfaced in settings, but the exchange itself is
-   * not implemented yet — see TIP-003 §10 for the rationale and drawbacks.
+   * not implemented yet — see TIP-3 §10 for the rationale and drawbacks.
    */
   share_my_relays: boolean;
   /**

@@ -87,10 +87,10 @@ const renderRelayList = (root, relays, { onRemove }) => {
 
 // Rank relays that friends use but the user does not yet use, by how many
 // friends use each (per-friend de-duplicated). This is the popularity signal
-// from TIP-003 Phase 2: it helps users converge on overlapping relay sets
+// from TIP-3 Phase 2: it helps users converge on overlapping relay sets
 // without a central directory. We deliberately keep the floor at 1 (suggest a
 // relay seen on a single friend) — the network is small today; the Sybil-
-// resistance floor (TIP-003 drawback 3) becomes relevant once relay sets are
+// resistance floor (TIP-3 drawback 3) becomes relevant once relay sets are
 // exchanged automatically via `my_relays` rather than only through QR scans.
 const computeRelaySuggestions = (data) => {
   const usedRelays = Array.isArray(data?.relays)
@@ -216,7 +216,7 @@ const bindRelaySection = (root, data) => {
 
   // "Tell friends what relays you use" toggle. Persists the flag now; the
   // actual `my_relays` peer-message exchange ships with the relay-pool
-  // transport (TIP-003 §10).
+  // transport (TIP-3 §10).
   const shareToggleEl = root.querySelector('[data-bind="share-relays-toggle"]');
   if (shareToggleEl) {
     initCheckToggle(shareToggleEl, {

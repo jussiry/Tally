@@ -38,7 +38,7 @@
   model_version: number,          // DATA_MODEL_VERSION constant (currently 4)
   device_id: string,              // stable per-device id, generated on first start
   relays: string[],               // *secondary* relay URLs added in settings
-  share_my_relays: boolean,       // tell friends which relays we use (TIP-003 §10)
+  share_my_relays: boolean,       // tell friends which relays we use (TIP-3 §10)
   stun_servers: string[],         // ICE STUN URLs; defaults to DEFAULT_STUN_SERVERS
   user: PersonModel,              // the local user (includes private keys)
   contacts: ContactsMap,          // key → ContactModel (public info only)
@@ -68,7 +68,7 @@ server, so <code>stun_servers</code> is the whole ICE configuration; see
 <h3>4.4 LedgerEntryModel</h3>
 <p>One entry in the append-only local ledger. See the <a href="spec-ledger.html">Ledger spec</a> for full semantics.</p>
 <div class="table-scroll"><table><thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Notes</th></tr></thead><tbody><tr><td><code>id</code></td><td>string</td><td><code>""</code></td><td>Matches the originating peer message <code>id</code></td></tr><tr><td><code>timestamp</code></td><td>string</td><td><code>""</code></td><td>ISO-8601; set locally when the entry is appended</td></tr><tr><td><code>type</code></td><td>string</td><td><code>""</code></td><td>Peer message type (e.g. <code>friend_request</code>, <code>tx_created</code>)</td></tr><tr><td><code>from_user_id</code></td><td>string</td><td><code>""</code></td><td>Sender's npub</td></tr><tr><td><code>to_user_id</code></td><td>string</td><td><code>""</code></td><td>Recipient's npub</td></tr><tr><td><code>originated_at</code></td><td>string</td><td><code>""</code></td><td>Sender's <code>created_at</code> from the original peer message; needed to reconstruct the Schnorr digest</td></tr><tr><td><code>signature</code></td><td>string</td><td><code>""</code></td><td>Schnorr (BIP-340) signature hex over the canonical inner-message digest</td></tr><tr><td><code>payload</code></td><td>object</td><td><code>{}</code></td><td>Message-type-specific data (deep-cloned plain object)</td></tr></tbody></table></div>
-<p>Since TIP-006 an entry also carries <code>authorship</code>: the <a href="glossary.html#authorship">authorship proof</a> (a signed Nostr event) that establishes who wrote it. The top-level <code>signature</code> field is the legacy bare Schnorr signature, kept only so pre-TIP-006 entries still verify; new code reads <code>authorship</code>.</p>
+<p>Since TIP-6 an entry also carries <code>authorship</code>: the <a href="glossary.html#authorship">authorship proof</a> (a signed Nostr event) that establishes who wrote it. The top-level <code>signature</code> field is the legacy bare Schnorr signature, kept only so pre-TIP-6 entries still verify; new code reads <code>authorship</code>.</p>
 <p><code>timestamp</code> is set by the local machine at append time; it is not covered by the signature. <code>originated_at</code> is the sender-asserted timestamp that <em>is</em> covered by the signature; it must be preserved to allow post-hoc verification.</p>
 <h3>4.5 PeerMessageModel</h3>
 <p>Entries in the outbox — messages queued for delivery that have not yet been acknowledged.</p>

@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>TIP-005 OS notifications — Design</title>
+  <title>TIP-5 OS notifications — Design</title>
   <link rel="stylesheet" href="assets/design.css" />
 </head>
 <body>
   <main class="page" data-status="proposal"
     data-files="js/notify/notification-policy.js js/push/push-subscribe.js sw.js js/peer/handlers.js js/ui/notifications.js js/commands/transaction.js js/commands/payment-request.js js/commands/friendship.js js/notify/notification-prefs.js js/commands/notification-prefs.js js/notify/local-os-notification.js ui-modules/subpage/notifications.js">
-<h1>TIP-005: OS Notifications via Encrypted Web Push</h1>
-<div class="table-scroll"><table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody><tr><td>Number</td><td>TIP-005</td></tr><tr><td>Title</td><td>OS Notifications via Encrypted Web Push</td></tr><tr><td>Status</td><td>Draft (implemented, pending real-device verification)</td></tr><tr><td>Author</td><td>Jussi Rytkönen</td></tr><tr><td>Created</td><td>2026-06-05</td></tr></tbody></table></div>
+<h1>TIP-5: OS Notifications via Encrypted Web Push</h1>
+<div class="table-scroll"><table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody><tr><td>Number</td><td>TIP-5</td></tr><tr><td>Title</td><td>OS Notifications via Encrypted Web Push</td></tr><tr><td>Status</td><td>Draft (implemented, pending real-device verification)</td></tr><tr><td>Author</td><td>Jussi Rytkönen</td></tr><tr><td>Created</td><td>2026-06-05</td></tr></tbody></table></div>
 <hr />
 <h2>Summary</h2>
 <p>Tally can now raise <strong>OS-level notifications</strong> (lock screen / notification tray) when a peer message arrives while the app is closed. It uses the standard Web Push stack (VAPID + the browser vendor's push service) but keeps the notification text <strong>end-to-end encrypted</strong>: the relay that triggers the push never learns what the notification says.</p>

@@ -7,9 +7,10 @@
  *      cross-document fetch is blocked on the file:// origin, so search shows
  *      nothing when the docs are opened straight from the filesystem.
  *   2. Inline editing (see assets/design.js) POSTs edited markdown back to the
- *      source .html file via the /api/save endpoint below. Editing and the
- *      GraphEditor column are switched on only by the flag this server injects
- *      into the pages it serves, so the public copy of the site stays read-only.
+ *      source .html file via the /api/save endpoint below, and the TODO page
+ *      saves its TIP ranking via /api/tip-order. These are switched on only by
+ *      the flag this server injects into the pages it serves, so the public
+ *      copy of the site stays read-only.
  *
  * Static files are served from design/. Clean URLs work too: a path with no
  * extension falls back to "<path>.html" (so /purpose and /purpose.html both
@@ -27,6 +28,8 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(join(fileURLToPath(import.meta.url), '..', '..')); // design/
 const PORT = Number(process.env.PORT) || Number(process.argv[2]) || 4000;
+
+const AUTHORING_FLAG = '<script>window.DESIGN_AUTHORING = true;</script>\n  ';
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -83,7 +86,31 @@ createServer(async (req, res) => {
       const abs = safeResolve(base);
       if (!abs) return json(res, 400, { ok: false, error: 'invalid path' });
       try { await stat(abs); } catch { return json(res, 404, { ok: false, error: 'file not found' }); }
-      await writeFile(abs, html, 'utf8');
+      // The editor builds the file from the page as served, flag included;
+      // keep it out of the source.
+      await writeFile(abs, html.split(AUTHORING_FLAG).join(''), 'utf8');
+      return json(res, 200, { ok: true });
+    } catch (e) {
+      return json(res, 400, { ok: false, error: String((e && e.message) || e) });
+    }
+  }
+
+  // --- TIP order endpoint: rewrite assets/tip-order.js from the TODO page. ---
+  // Accepts only names of existing tip-*.html pages, so the file stays a plain
+  // list the page can trust.
+  if (req.method === 'POST' && path === '/api/tip-order') {
+    try {
+      const { order } = JSON.parse(await readBody(req, 100_000));
+      if (!Array.isArray(order) || !order.every((h) => typeof h === 'string' && /^tip-[a-z0-9-]+\.html$/.test(h))) {
+        return json(res, 400, { ok: false, error: 'order must list tip-*.html pages' });
+      }
+      for (const h of order) {
+        try { await stat(join(ROOT, h)); } catch { return json(res, 400, { ok: false, error: `no page ${h}` }); }
+      }
+      const file = join(ROOT, 'assets', 'tip-order.js');
+      const src = await readFile(file, 'utf8');
+      const header = src.slice(0, src.indexOf('window.TIP_ORDER'));
+      await writeFile(file, `${header}window.TIP_ORDER = ${JSON.stringify([...new Set(order)], null, 2)};\n`, 'utf8');
       return json(res, 200, { ok: true });
     } catch (e) {
       return json(res, 400, { ok: false, error: String((e && e.message) || e) });
@@ -114,7 +141,7 @@ createServer(async (req, res) => {
     if (extname(abs) === '.html') {
       body = Buffer.from(String(body).replace(
         '<script src="assets/pages.js">',
-        '<script>window.DESIGN_AUTHORING = true;</script>\n  <script src="assets/pages.js">'
+        AUTHORING_FLAG + '<script src="assets/pages.js">'
       ));
     }
     res.writeHead(200, {

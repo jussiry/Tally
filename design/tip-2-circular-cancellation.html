@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>TIP-002 Circular cancellation — Design</title>
+  <title>TIP-2 Circular cancellation — Design</title>
   <link rel="stylesheet" href="assets/design.css" />
 </head>
 <body>
   <main class="page" data-status="proposal"
     data-files="js/commands/transaction.js js/ledger.ts js/utils/friendships.js js/friends-helpers.js js/peer/authorship.js js/crypto/canonical.js">
-<h1>TIP-002: Circular Debt Cancellation</h1>
-<div class="table-scroll"><table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody><tr><td>Number</td><td>TIP-002</td></tr><tr><td>Title</td><td>Circular Debt Cancellation</td></tr><tr><td>Status</td><td>Draft</td></tr><tr><td>Author</td><td>Jussi Rytkönen</td></tr><tr><td>Created</td><td>2026-05-04</td></tr></tbody></table></div>
+<h1>TIP-2: Circular Debt Cancellation</h1>
+<div class="table-scroll"><table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody><tr><td>Number</td><td>TIP-2</td></tr><tr><td>Title</td><td>Circular Debt Cancellation</td></tr><tr><td>Status</td><td>Draft</td></tr><tr><td>Author</td><td>Jussi Rytkönen</td></tr><tr><td>Created</td><td>2026-05-04</td></tr></tbody></table></div>
 <hr />
 <h2>Summary</h2>
 <p>When a cycle of debts exists in the trust network — A owes B, B owes C, C owes A — the minimum amount across all edges can be cancelled without money changing hands. This TIP defines a two-phase protocol for discovering such cycles and executing a multi-party signed cancellation transaction, while minimising the amount of debt information shared with participants outside the cycle.</p>

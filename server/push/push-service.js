@@ -21,7 +21,7 @@ signaling layer leans on but should not implement itself:
      server never sees the plaintext. Stale subscriptions (404/410) are pruned.
 
 The actual notification text is decrypted inside the recipient's service
-worker. See app/sw.js and TIPs/TIP-004-os-notifications.md.
+worker. See app/sw.js and design/tip-5-os-notifications.html.
 */
 
 const fs = require("fs");

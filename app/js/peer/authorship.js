@@ -1,5 +1,5 @@
 /*
-Authorship proofs for durable Tally messages (TIP-006).
+Authorship proofs for durable Tally messages (TIP-6).
 
 Every durable peer message / ledger entry carries an `authorship` proof that
 binds its semantic fields (id, type, from, to, created_at, payload) to the
@@ -91,7 +91,7 @@ export const hasAuthorshipProof = (value) =>
 const hasTag = (tags, key, val) =>
   Array.isArray(tags) && tags.some((t) => Array.isArray(t) && t[0] === key && t[1] === val);
 
-// Verify rules 6–11 of TIP-006 for the signed-event scheme.
+// Verify rules 6–11 of TIP-6 for the signed-event scheme.
 const verifyNostrEventAuthorship = async (message, event) => {
   if (!event || typeof event !== "object") return false;
   if (event.kind !== TALLY_EVENT_KIND) return false;

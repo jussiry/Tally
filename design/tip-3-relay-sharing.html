@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>TIP-003 Relay sharing (cont.) — Design</title>
+  <title>TIP-3 Relay sharing (cont.) — Design</title>
   <link rel="stylesheet" href="assets/design.css" />
 </head>
 <body>
   <main class="page" data-status="proposal"
     data-files="js/commands/relays.js js/peer/messages.js js/peer/handlers.js js/models/data-model.ts js/signaling/relay-pool.js js/utils/relay-url.js ui-modules/settings-page/index.js">
-<h1>TIP-003 (cont.): Telling Friends What Relays You Use</h1>
-<div class="table-scroll"><table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody><tr><td>Number</td><td>TIP-003</td></tr><tr><td>Title</td><td>Relay Sharing with Friends</td></tr><tr><td>Status</td><td>Draft</td></tr><tr><td>Author</td><td>Jussi Rytkönen</td></tr><tr><td>Created</td><td>2026-05-21</td></tr></tbody></table></div>
-<blockquote><p><strong>Context:</strong> The relay pool transport and Phase 1 schema fields are implemented — see <code>implemented/TIP-003-multiple-relay-servers.md</code>. This document covers the unimplemented phases.</p></blockquote>
+<h1>TIP-3 (cont.): Telling Friends What Relays You Use</h1>
+<div class="table-scroll"><table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody><tr><td>Number</td><td>TIP-3</td></tr><tr><td>Title</td><td>Relay Sharing with Friends</td></tr><tr><td>Status</td><td>Draft</td></tr><tr><td>Author</td><td>Jussi Rytkönen</td></tr><tr><td>Created</td><td>2026-05-21</td></tr></tbody></table></div>
+<blockquote><p><strong>Context:</strong> The relay pool transport and Phase 1 schema fields are implemented — see <code>implemented/TIP-3-multiple-relay-servers.md</code>. This document covers the unimplemented phases.</p></blockquote>
 <hr />
 <h2>Summary</h2>
 <p>When a user is connected to a friend (over WebRTC) and <strong>both sides have opted in</strong>, they exchange a <code>my_relays</code> peer message. Each side stores the other's relay list in <code>friends[].relays</code>. The aggregated info is surfaced in the add-relay UI as a list of popular-among-your-friends relays you don't yet use, to help users converge on overlapping relay sets without a central directory.</p>
