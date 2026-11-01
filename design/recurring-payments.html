@@ -25,7 +25,7 @@
 <p>Only the payer can stop one: <em>Cancel</em> on the friend page, after confirming, appends <code>recurring_payment_cancel</code>. Payments already made stay in the tally.</p>
 
 <h2>2. State lives in the ledger</h2>
-<p>Like payment requests, nothing is stored on the friend record. A recurring payment is active while its created entry has no cancel by the payer (<code>getActiveRecurringPayments</code>). Each payment it makes is an ordinary <code>transaction_created</code> carrying <code>recurring_id</code> and <code>due_at</code>, so it applies to the tally, notifies the friend (<em>Money received</em>) and syncs like any other record. Which due times are paid is read back off those entries.</p>
+<p>Like payment requests, nothing is stored on the friend record. A recurring payment is active while its created entry has no cancel by the payer (<code>getActiveRecurringPayments</code>). Each payment it makes is an ordinary <code>transaction_created</code> carrying <code>recurring_id</code> and <code>due_at</code>, so it applies to the tally, notifies the friend (<em>payment received</em>) and syncs like any other record. Which due times are paid is read back off those entries.</p>
 <p>Before sending, a device checks the ledger: a due time with a payment entry is paid. Once one device pays, self-sync carries the entry to the others within seconds, so they skip it. Two devices can still race inside that window. For that case the transaction id is derived from the recurring id and the due time (<code>recurringTransactionId</code>), so both copies are the same transaction:</p>
 <ul>
   <li>tallies dedupe on the transaction id (the friend record and <code>deriveTallyFromLedger</code>);</li>
@@ -44,7 +44,7 @@
 <h2>5. Notifications</h2>
 <ul>
   <li>A recurring request notifies under <em>Payment requested</em>, worded with its schedule.</li>
-  <li>Each payment notifies the friend under <em>Money received</em>, like any payment.</li>
+  <li>Each payment notifies the friend under <em>payment received</em>, like any payment.</li>
   <li><em>Remind to send recurring payments</em> (on by default) controls the relay reminders of §4. It is a self-only setting (<code>SelfNotifyType</code> in <code>notification-policy.js</code>); turned off, the app registers an empty list, which clears the relays' copy.</li>
   <li>When the app pays, a toast says what was sent, one per friend when catching up. There is no OS notification for it: payments only go out while the app runs.</li>
 </ul>

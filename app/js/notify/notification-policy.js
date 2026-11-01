@@ -70,7 +70,7 @@ export const SelfNotifyType = Object.freeze({
 // before per-type choice existed stay on by default, as does a friendship
 // being deactivated or reactivated (rare, and it matters); the rest are opt-in.
 export const OS_NOTIFY_SETTINGS = [
-  { label: "Money received", types: [MessageType.TRANSACTION_CREATED], defaultEnabled: true },
+  { label: "payment received", types: [MessageType.TRANSACTION_CREATED], defaultEnabled: true },
   { label: "Payment requested", types: [MessageType.PAYMENT_REQUEST], defaultEnabled: true },
   {
     label: "Payment request response",
