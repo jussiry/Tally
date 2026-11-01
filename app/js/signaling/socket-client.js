@@ -30,6 +30,7 @@ const SignalType = Object.freeze({
   QUEUE_PEER_ENVELOPE: "queue_peer_envelope",
   PUSH_SUBSCRIBE: "push_subscribe",
   PUSH_UNSUBSCRIBE: "push_unsubscribe",
+  PUSH_REMINDERS: "push_reminders",
   PEER_CONNECT: "peer_connect",
   PEER_DISCONNECT: "peer_disconnect",
   PEER_ENVELOPE: "peer_envelope",
@@ -100,6 +101,9 @@ const createSignalingClient = (
   // Web Push subscription for this device, re-sent on every (re)register so a
   // relay that restarts re-learns where to push. Null until the user opts in.
   let pushSubscription = null;
+  // Push reminders for this user's recurring payments ({ id, at, hint }),
+  // re-sent on every (re)register like the subscription. Null until set.
+  let pushReminders = null;
 
   const clearReconnectTimer = () => {
     if (!reconnectTimer) {
@@ -129,6 +133,9 @@ const createSignalingClient = (
         type: SignalType.PUSH_SUBSCRIBE,
         subscription: pushSubscription,
       });
+    }
+    if (pushReminders) {
+      sendJson(socket, { type: SignalType.PUSH_REMINDERS, reminders: pushReminders });
     }
     if (notifyReady && typeof onSessionReady === "function") {
       onSessionReady();
@@ -280,6 +287,13 @@ const createSignalingClient = (
       pushSubscription = null;
       if (endpoint && socket?.readyState === WebSocket.OPEN) {
         sendJson(socket, { type: SignalType.PUSH_UNSUBSCRIBE, endpoint });
+      }
+    },
+    // Replace the user's reminders on this relay.
+    setPushReminders: (reminders) => {
+      pushReminders = Array.isArray(reminders) ? reminders : null;
+      if (pushReminders && socket?.readyState === WebSocket.OPEN) {
+        sendJson(socket, { type: SignalType.PUSH_REMINDERS, reminders: pushReminders });
       }
     },
     destroy: () => {

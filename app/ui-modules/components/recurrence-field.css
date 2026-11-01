@@ -1,0 +1,52 @@
+/* The recurring-payment control on the Send and Request forms (recurrence-field.js). */
+
+.recurrence-field {
+  display: grid;
+  gap: var(--payment-form-gap, 18px);
+}
+
+.recurrence-mode {
+  display: flex;
+  justify-content: center;
+  gap: 28px;
+}
+
+.recurrence-mode-option {
+  padding: 2px 4px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 16px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.recurrence-mode-option.is-chosen {
+  color: var(--ink);
+  font-weight: 700;
+  cursor: default;
+}
+
+.recurrence-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.recurrence-options[hidden] {
+  display: none;
+}
+
+.send-form .recurrence-select {
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.recurrence-word {
+  color: var(--muted);
+  font-size: 14px;
+}

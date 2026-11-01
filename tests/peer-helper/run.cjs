@@ -26,6 +26,11 @@ Available actions:
   rejectFriend          Reject the first incoming friend request
   sendPaymentRequest    Send a payment request to first friend (requires --amount)
   cancelPaymentRequest  Cancel the outgoing payment request to first friend
+  sendRecurringRequest  Request a recurring payment (requires --amount; --to picks
+                        the friend by name, default the first; --value
+                        daily|weekly|monthly|yearly, default monthly)
+  showFriend            Print a friend's boxes, tally and latest records (--to
+                        picks the friend by name, default the first)
 
 The browser is always opened headless (unless --headed) and closed after the
 action completes. The helper connects to the same dev server as the preview
@@ -45,6 +50,7 @@ const parseArgs = (argv) => {
     value: null,
     amount: null,
     note: "",
+    to: "",
     port: Number(process.env.TEST_PORT) || 3000,
     headed: false,
     wait: 2000,
@@ -57,6 +63,7 @@ const parseArgs = (argv) => {
     if (v === "--value" && argv[i + 1]) { opts.value = argv[++i]; continue; }
     if (v === "--amount" && argv[i + 1]) { opts.amount = Number(argv[++i]); continue; }
     if (v === "--note" && argv[i + 1]) { opts.note = argv[++i]; continue; }
+    if (v === "--to" && argv[i + 1]) { opts.to = argv[++i]; continue; }
     if (v === "--port" && argv[i + 1]) { opts.port = Number(argv[++i]); continue; }
     if (v === "--headed") { opts.headed = true; continue; }
     if (v === "--wait" && argv[i + 1]) { opts.wait = Number(argv[++i]); continue; }
@@ -127,6 +134,55 @@ const actions = {
     // Submit as request
     await page.click('[data-action="request"]');
     console.log(`  → ${opts.user} sent payment request €${opts.amount}${opts.note ? ` (${opts.note})` : ""}`);
+  },
+
+  async sendRecurringRequest(page, opts) {
+    if (!opts.amount || !Number.isFinite(opts.amount)) {
+      throw new Error("--amount required for sendRecurringRequest");
+    }
+    const frequency = opts.value || "monthly";
+    await page.click('nav button:nth-child(2)');
+    await page.waitForSelector('.friends-list');
+    const rows = await page.$$('.friends-list button');
+    if (!rows.length) throw new Error("No friend rows found");
+    let row = rows[0];
+    if (opts.to) {
+      row = null;
+      for (const candidate of rows) {
+        if ((await candidate.innerText()).includes(opts.to)) { row = candidate; break; }
+      }
+      if (!row) throw new Error(`No friend named ${opts.to}`);
+    }
+    await row.click();
+    await page.waitForSelector('[data-action="request"]');
+    await page.click('[data-action="request"]');
+    await page.waitForSelector('[data-bind="request-amount"]');
+    await page.fill('[data-bind="request-amount"]', String(opts.amount));
+    if (opts.note) await page.fill('[data-bind="request-message"]', opts.note);
+    await page.click('[data-mode="recurring"]');
+    await page.selectOption('[data-bind="recurrence-frequency"]', frequency);
+    await page.click('[data-bind="request-submit"]');
+    console.log(`  → ${opts.user} requested €${opts.amount} ${frequency}${opts.note ? ` (${opts.note})` : ""}`);
+  },
+
+  async showFriend(page, opts) {
+    await page.click('nav button:nth-child(2)');
+    await page.waitForSelector('.friends-list');
+    const rows = await page.$$('.friends-list button');
+    let row = rows[0];
+    for (const candidate of rows) {
+      if (opts.to && (await candidate.innerText()).includes(opts.to)) { row = candidate; break; }
+    }
+    if (!row) throw new Error("No friend rows found");
+    await row.click();
+    await page.waitForSelector('[data-bind="tally-amount"]');
+    await page.waitForTimeout(1500); // let queued messages arrive and re-render
+    const boxes = await page.$$eval(".actionable-box:not([hidden])", (els) =>
+      els.map((el) => el.innerText.replace(/\n/g, " | ")));
+    const tally = await page.$eval('[data-bind="tally-amount"]', (el) => el.innerText);
+    const records = await page.$$eval('[data-list="friend-transactions"] li', (els) =>
+      els.slice(0, 5).map((el) => el.innerText.replace(/\n/g, " | ")));
+    console.log(JSON.stringify({ boxes, tally, records }, null, 2));
   },
 
   async cancelPaymentRequest(page, opts) {

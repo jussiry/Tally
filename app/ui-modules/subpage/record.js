@@ -12,6 +12,7 @@ import { loadVendorScript } from "../../js/utils/vendor-loader.js";
 import { parseIouUri } from "../../js/utils/qr-uri.js";
 import { bindFriendSelect, bindOwesPreview } from "../components/owes-sentence.js";
 import { randomNotePlaceholder } from "../../js/utils/note-placeholders.js";
+import { mountRecurrenceField } from "../components/recurrence-field.js";
 
 
 const renderEmptyState = (contentEl, allFriends) => {
@@ -95,10 +96,20 @@ export const bindRecord = (root, data, friendId) => {
 
   const getFirstName = (fullName) => fullName.split(/\s+/)[0] || fullName;
 
-  const updateSubmitLabel = (name) => {
+  let isRecurring = false;
+  let currentName = "";
+  const updateSubmitLabel = (name = currentName) => {
+    currentName = name;
+    const who = name ? getFirstName(name) : "friend";
     if (submitLabelEl)
-      submitLabelEl.textContent = `Sign and send to ${name ? getFirstName(name) : "friend"}`;
+      submitLabelEl.textContent = isRecurring ? `Set up payments to ${who}` : `Sign and send to ${who}`;
   };
+  const recurrence = mountRecurrenceField(root.querySelector('[data-slot="recurrence"]'), {
+    onChange: (recurring) => {
+      isRecurring = recurring;
+      updateSubmitLabel();
+    },
+  });
 
   const updateExplainer = (name) => {
     if (!explainerEl) return;
@@ -236,6 +247,7 @@ export const bindRecord = (root, data, friendId) => {
         friendId: selectEl?.value || "",
         amount,
         message,
+        schedule: recurrence.getSchedule(),
       };
     },
   };

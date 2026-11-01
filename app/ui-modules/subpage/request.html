@@ -15,7 +15,7 @@
   </div>
   <div class="request-panel" data-panel="request-friend">
     <div class="content-card trust-hero send-card">
-      <form class="send-form" aria-label="Request payment form">
+      <form class="send-form send-form--payment" aria-label="Request payment form">
         <div class="owes-sentence">
           <select class="form-select owes-sentence-select owes-sentence-select--debtor" data-bind="request-to"></select>
           <span class="form-label owes-sentence-verb">owes</span>
@@ -41,6 +41,7 @@
             data-bind="request-message"
           ></textarea>
         </label>
+        <div class="recurrence-field" data-slot="recurrence"></div>
         <button class="primary-button" type="button" data-bind="request-submit">
           <span class="primary-button-label">Request payment</span>
         </button>

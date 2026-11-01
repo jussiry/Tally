@@ -77,6 +77,7 @@ const SignalType = Object.freeze({
   QUEUE_PEER_ENVELOPE: "queue_peer_envelope",
   PUSH_SUBSCRIBE: "push_subscribe",
   PUSH_UNSUBSCRIBE: "push_unsubscribe",
+  PUSH_REMINDERS: "push_reminders",
   PEER_CONNECT: "peer_connect",
   PEER_DISCONNECT: "peer_disconnect",
   PEER_ENVELOPE: "peer_envelope",
@@ -85,8 +86,20 @@ const SignalType = Object.freeze({
 
 // Web Push payload type; the service worker (app/sw.js) reads only its hint.
 const PUSH_PAYLOAD_PEER_MESSAGE = "peer_message";
+const PUSH_PAYLOAD_REMINDER = "reminder";
 
 const PER_RECIPIENT_ENVELOPE_LIMIT = 500;
+
+// Push reminders: a user's app registers when its recurring payments next fall
+// due ({ id, at, hint }, the hint encrypted to the user's own key). At that
+// time, if none of the user's devices is connected to open the app and send
+// the payment itself, the relay pushes the hint so the user knows to open it.
+// Each registration replaces the user's whole list. In memory only, like the
+// subscriptions: apps re-send their list on every reconnect.
+const PER_USER_REMINDER_LIMIT = 50;
+const REMINDER_MAX_AHEAD_MS = 400 * 24 * 60 * 60 * 1000;
+const REMINDER_HINT_MAX_LENGTH = 4096;
+const REMINDER_CHECK_MS = 30 * 1000;
 
 const createSignalingServer = (server) => {
   const websocketServer = new WebSocketServer({ noServer: true });
@@ -98,6 +111,8 @@ const createSignalingServer = (server) => {
   // a user has more than one online.
   const clientsByDeviceId = new Map();
   const envelopesByRecipient = new Map();
+  // userId -> [{ id, at (ms), hint }]
+  const remindersByUser = new Map();
 
   const getUserClients = (userId) => {
     if (!userId) return [];
@@ -238,6 +253,52 @@ const createSignalingServer = (server) => {
       }
     }
   };
+
+  const setReminders = (userId, reminders) => {
+    if (!userId || !Array.isArray(reminders)) return;
+    const now = Date.now();
+    const valid = reminders
+      .map((reminder) => ({
+        id: typeof reminder?.id === "string" ? reminder.id.slice(0, 200) : "",
+        at: Date.parse(reminder?.at),
+        hint: typeof reminder?.hint === "string" ? reminder.hint : "",
+      }))
+      .filter(
+        (reminder) =>
+          reminder.id &&
+          Number.isFinite(reminder.at) &&
+          reminder.at < now + REMINDER_MAX_AHEAD_MS &&
+          reminder.hint &&
+          reminder.hint.length <= REMINDER_HINT_MAX_LENGTH
+      )
+      .slice(0, PER_USER_REMINDER_LIMIT);
+    if (valid.length) remindersByUser.set(userId, valid);
+    else remindersByUser.delete(userId);
+  };
+
+  const fireDueReminders = () => {
+    const now = Date.now();
+    remindersByUser.forEach((reminders, userId) => {
+      const due = reminders.filter((reminder) => reminder.at <= now);
+      if (!due.length) return;
+      const rest = reminders.filter((reminder) => reminder.at > now);
+      if (rest.length) remindersByUser.set(userId, rest);
+      else remindersByUser.delete(userId);
+      // A connected app sends the payment itself; no need to wake anyone.
+      if (getUserClients(userId).length) return;
+      due.forEach((reminder) => {
+        pushService
+          .sendToUser(userId, {
+            type: PUSH_PAYLOAD_REMINDER,
+            from_user_id: userId,
+            message_id: reminder.id,
+            hint: reminder.hint,
+          })
+          .catch(() => {});
+      });
+    });
+  };
+  setInterval(fireDueReminders, REMINDER_CHECK_MS).unref();
 
   const getClient = (socket) => {
     return clientsBySocket.get(socket) || null;
@@ -511,6 +572,11 @@ const createSignalingServer = (server) => {
         if (client.userId && payload.subscription) {
           pushService.addSubscription(client.userId, payload.subscription);
         }
+        return;
+      }
+
+      if (payload.type === SignalType.PUSH_REMINDERS) {
+        if (client.userId) setReminders(client.userId, payload.reminders);
         return;
       }
 

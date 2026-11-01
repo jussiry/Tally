@@ -64,6 +64,7 @@
     </div>
   </div>
   <div data-list="payment-requests"></div>
+  <div data-list="recurring-payments"></div>
   <div class="friend-stats" aria-label="Tally and trust">
     <div class="friend-stat surface-box" data-section="friend-tally">
       <div class="friend-stat-label" data-bind="tally-label">owes you</div>
@@ -108,6 +109,18 @@
     <strong class="tx-amount" data-bind="amount"></strong>
     <span class="tx-note" data-bind="note"></span>
   </li>
+</template>
+
+<template data-template="recurring-payment">
+  <div class="actionable-box surface-box recurring-payment" data-section="recurring-payment">
+    <div class="actionable-box-label" data-bind="recurring-payment-label"></div>
+    <div class="recurring-payment-next" data-bind="recurring-payment-next"></div>
+    <div class="actionable-box-actions" data-section="recurring-payment-cancel-actions" hidden>
+      <button class="friend-inline-action surface-box" type="button" data-action="cancel-recurring-payment">
+        Cancel
+      </button>
+    </div>
+  </div>
 </template>
 
 <template data-template="payment-request">

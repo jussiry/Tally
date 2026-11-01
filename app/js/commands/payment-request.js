@@ -12,6 +12,9 @@ entries in.
 Paying a request also creates the mirroring IOU transaction in the same tick —
 accepting is equivalent to sending the friend an IOU, so tallies stay
 consistent. That transaction goes through routeOutboundEntry like any other.
+A request carrying a `schedule` asks for a recurring payment instead: it is
+sent once, and accepting it sets up the recurring payment from this side
+(commands/recurring-payment.js), which then pays on its own schedule.
 @category command
 */
 
@@ -28,8 +31,13 @@ import { queuePeerMessage } from "../peer/outbox.js";
 import { getFriend } from "../friends-helpers.js";
 import { appendLedgerEntryFromMessage, getOpenPaymentRequests } from "../ledger.js";
 import { routeOutboundEntry } from "../peer/handlers.js";
+import { normalizeSchedule } from "../recurring.js";
+import { queueRecurringPaymentCreated } from "./recurring-payment.js";
 
-export const requestPayment = async ({ friendId, amount, message }) => {
+/**
+ * @param {{ friendId: string, amount: number, message?: string, schedule?: object | null }} options
+ */
+export const requestPayment = async ({ friendId, amount, message, schedule = null }) => {
   const normalizedFriendId = asTrimmedString(friendId);
   const normalizedAmount = normalizeCurrencyAmount(amount, NaN);
   if (!normalizedFriendId || !Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
@@ -48,6 +56,7 @@ export const requestPayment = async ({ friendId, amount, message }) => {
 
   const trimmedMessage = asTrimmedString(message);
   const requestId = createId("pr");
+  const normalizedSchedule = normalizeSchedule(schedule);
 
   const prMsg = await queuePeerMessage(state, {
     toUserId: normalizedFriendId,
@@ -56,6 +65,7 @@ export const requestPayment = async ({ friendId, amount, message }) => {
       request_id: requestId,
       amount_eur: normalizedAmount,
       note: trimmedMessage,
+      ...(normalizedSchedule ? { schedule: normalizedSchedule } : {}),
     },
   });
   appendLedgerEntryFromMessage(state, prMsg);
@@ -97,7 +107,15 @@ export const respondToPaymentRequest = async (friendId, requestId, accepted) => 
   });
   appendLedgerEntryFromMessage(state, responseMsg);
 
-  if (accepted) {
+  if (accepted && request.schedule) {
+    await queueRecurringPaymentCreated(state, {
+      toUserId,
+      amount: request.amount_eur,
+      note: request.note,
+      schedule: request.schedule,
+      requestId: request.id,
+    });
+  } else if (accepted) {
     const transactionId = createId("tx");
     const date = new Date().toISOString().slice(0, 10);
     const note = request.note || "Payment request accepted";

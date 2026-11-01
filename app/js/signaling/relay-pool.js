@@ -71,6 +71,8 @@ export const createRelayPool = ({
   // The last push subscription we were given, so relays added later also learn
   // where to deliver Web Push for this device.
   let lastPushSubscription = null;
+  // Likewise the last recurring-payment reminders.
+  let lastPushReminders = null;
 
   const presenceAdd = (key, url) => {
     let set = presence.get(key);
@@ -237,6 +239,9 @@ export const createRelayPool = ({
     if (lastPushSubscription) {
       entries.forEach((entry) => entry.client?.setPushSubscription(lastPushSubscription));
     }
+    if (lastPushReminders) {
+      entries.forEach((entry) => entry.client?.setPushReminders(lastPushReminders));
+    }
   };
 
   const setSession = (session) => {
@@ -247,6 +252,11 @@ export const createRelayPool = ({
   const setPushSubscription = (subscription) => {
     lastPushSubscription = subscription || null;
     entries.forEach((entry) => entry.client?.setPushSubscription(subscription));
+  };
+
+  const setPushReminders = (reminders) => {
+    lastPushReminders = reminders || null;
+    entries.forEach((entry) => entry.client?.setPushReminders(reminders));
   };
 
   const sendPushUnsubscribe = (endpoint) => {
@@ -298,6 +308,7 @@ export const createRelayPool = ({
     sendPeerSignal,
     queuePeerEnvelopeOnServer,
     setPushSubscription,
+    setPushReminders,
     sendPushUnsubscribe,
     getStatuses,
     destroy,

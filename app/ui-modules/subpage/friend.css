@@ -208,6 +208,19 @@
   /*white-space: nowrap;*/
 }
 
+/* A recurring payment is standing information, not a decision: same box,
+   without the call-to-action colouring. */
+.actionable-box.recurring-payment {
+  border-color: var(--accent-faint);
+  background: var(--surface-background);
+  gap: 4px;
+}
+
+.recurring-payment-next {
+  font-size: 13px;
+  color: var(--muted);
+}
+
 .actionable-box-actions {
   display: flex;
   gap: 10px;

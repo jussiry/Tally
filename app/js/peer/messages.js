@@ -15,6 +15,10 @@ export const MessageType = Object.freeze({
   PAYMENT_REQUEST: "payment_request",
   PAYMENT_REQUEST_RESPONSE: "payment_request_response",
   PAYMENT_REQUEST_CANCEL: "payment_request_cancel",
+  // A payer's standing payment and its end; see js/recurring.js. Each payment
+  // it makes is a transaction_created carrying recurring_id and due_at.
+  RECURRING_PAYMENT_CREATED: "recurring_payment_created",
+  RECURRING_PAYMENT_CANCEL: "recurring_payment_cancel",
   // Deactivating a friendship and bringing it back; see commands/friendship-default.js.
   FRIENDSHIP_DEFAULT: "friendship_default",
   REACTIVATION_REQUEST: "reactivation_request",

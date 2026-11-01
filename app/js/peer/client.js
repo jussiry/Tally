@@ -681,6 +681,37 @@ const createRealtimeClient = () => {
     logRealtimeEvent(`Broadcast ${freshEntries.length} ledger entries to self-devices (${targets.length} path(s))`);
   };
 
+  // Register when this user's recurring payments next fall due, so a relay can
+  // push a reminder to open the app if no device of the user is connected
+  // then (recurring-scheduler.js). Each reminder's text is encrypted to the
+  // user's own key: the relay learns only the times. Sent only on a device
+  // that may show notifications, and only when the list changes; a device
+  // without permission sends nothing, so it never clears another device's.
+  let registeredRemindersKey = null;
+  const syncPushReminders = async () => {
+    const keyProvider = currentSnapshot?.keyProvider;
+    if (!keyProvider || typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    const reminders = currentSnapshot.recurringReminders || [];
+    const key = JSON.stringify(reminders);
+    if (key === registeredRemindersKey) return;
+    try {
+      const encrypted = await Promise.all(
+        reminders.map(async ({ id, at, body }) => ({
+          id,
+          at,
+          hint: await keyProvider.nip44Encrypt(
+            currentSnapshot.userId,
+            JSON.stringify({ title: "Tally", body, tag: id })
+          ),
+        }))
+      );
+      signalingClient.setPushReminders(encrypted);
+      registeredRemindersKey = key;
+    } catch (error) {
+      logRealtimeEvent(`Failed to register push reminders: ${String(error?.message || error)}`);
+    }
+  };
+
   const syncRealtimeState = async () => {
     currentSnapshot = await getRealtimeSnapshot();
     if (!currentSnapshot) {
@@ -716,6 +747,7 @@ const createRealtimeClient = () => {
     currentSnapshot.peerIds.forEach((peerUserId) => {
       requestPeerConnectionIfNeeded(peerUserId);
     });
+    void syncPushReminders();
     await flushOutbox();
     await broadcastNewLedgerEntriesToSelfDevices();
   };

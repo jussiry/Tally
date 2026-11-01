@@ -6,7 +6,7 @@
     </button>
   </div>
   <div class="content-card trust-hero send-card">
-    <form class="send-form" aria-label="Record tally form">
+    <form class="send-form send-form--payment" aria-label="Record tally form">
       <div class="owes-sentence">
         <span class="owes-sentence-name owes-sentence-name--debtor" data-bind="record-preview-user-name">You</span>
         <span class="form-label owes-sentence-verb">owes</span>
@@ -32,6 +32,7 @@
           data-bind="send-message"
         ></textarea>
       </label>
+      <div class="recurrence-field" data-slot="recurrence"></div>
       <button class="primary-button" type="button" data-bind="send-submit">
         <svg class="primary-button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <use href="#icon-send" />

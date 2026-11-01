@@ -8,6 +8,18 @@
   gap: 9px;
 }
 
+/* Send and Request: one gap between every row, the recurrence rows included
+   (recurrence-field.css). The owes-sentence's preview line sits inside the
+   gap below it (owes-sentence.css), so it doesn't widen the first gap. */
+.send-form--payment {
+  --payment-form-gap: 18px;
+  gap: var(--payment-form-gap);
+}
+
+.send-form--payment .primary-button {
+  margin-top: 0;
+}
+
 .form-field {
   display: grid;
   gap: 6px;
@@ -85,6 +97,13 @@
   text-align: left;
   resize: none;
   overflow: hidden;
+}
+
+/* An example note ("e.g. for the taxi ride"): quieter than typed text. */
+.form-textarea::placeholder {
+  font-size: 15px;
+  color: var(--muted);
+  opacity: 0.6;
 }
 
 .form-input:focus,

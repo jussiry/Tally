@@ -22,6 +22,8 @@ import {
   respondToPaymentRequest,
 } from "../../js/commands/payment-request.js";
 import { dismissNameChangeNotification } from "../../js/commands/user.js";
+import { cancelRecurringPayment } from "../../js/commands/recurring-payment.js";
+import { describeSchedule } from "../../js/recurring.js";
 import {
   defaultOnFriendship,
   deleteDeactivatedFriendHistory,
@@ -120,6 +122,17 @@ const renderDeactivatedFriendship = (root, { friend, friendId, friendName, frien
     });
   }
 };
+
+// "Mon, Dec 1, 09:00" in the device's time zone.
+const formatDueTime = (iso) =>
+  new Date(iso).toLocaleString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  });
 
 export const bindFriendDetail = (root, data, friendId) => {
   const titleEl = root.querySelector('[data-bind="page-title"]');
@@ -432,7 +445,8 @@ export const bindFriendDetail = (root, data, friendId) => {
   // persists drops it for good.
   const renderPaymentRequest = (request) => {
     const box = paymentRequestTemplate.content.firstElementChild.cloneNode(true);
-    const amount = `€${request.amount_eur.toFixed(2)}`;
+    const recurrence = request.schedule ? ` ${describeSchedule(request.schedule)}` : "";
+    const amount = `€${request.amount_eur.toFixed(2)}${recurrence}`;
     const label = request.is_incoming
       ? `${friendFirstName} requests ${amount}`
       : `You requested ${amount} from ${friendFirstName}`;
@@ -447,6 +461,8 @@ export const bindFriendDetail = (root, data, friendId) => {
     };
     if (request.is_incoming) {
       box.querySelector('[data-section="payment-request-accept-actions"]').hidden = false;
+      // Accepting a recurring request sets up payments from this side.
+      if (request.schedule) box.querySelector('[data-action="accept-payment-request"]').textContent = "Accept";
       onClick("accept-payment-request", () => respondToPaymentRequest(friendId, request.id, true));
       onClick("decline-payment-request", () => respondToPaymentRequest(friendId, request.id, false));
     } else {
@@ -460,6 +476,40 @@ export const bindFriendDetail = (root, data, friendId) => {
     paymentRequestListEl.replaceChildren(
       ...(friend?.pending_payment_requests ?? []).map(renderPaymentRequest)
     );
+  }
+
+  // One box per active recurring payment, in either direction. Only the payer
+  // can cancel, after confirming.
+  const recurringListEl = root.querySelector('[data-list="recurring-payments"]');
+  const recurringTemplate = root.querySelector('[data-template="recurring-payment"]');
+  const renderRecurringPayment = (recurring) => {
+    const box = recurringTemplate.content.firstElementChild.cloneNode(true);
+    const amount = `€${recurring.amount_eur.toFixed(2)} ${describeSchedule(recurring.schedule)}`;
+    const label = recurring.is_outgoing
+      ? `You pay ${friendFirstName} ${amount}`
+      : `${friendFirstName} pays you ${amount}`;
+    box.querySelector('[data-bind="recurring-payment-label"]').textContent =
+      recurring.note ? `${label} — ${recurring.note}` : label;
+    box.querySelector('[data-bind="recurring-payment-next"]').textContent =
+      `Next payment ${formatDueTime(recurring.next_due_at)}`;
+    if (recurring.is_outgoing) {
+      box.querySelector('[data-section="recurring-payment-cancel-actions"]').hidden = false;
+      box.querySelector('[data-action="cancel-recurring-payment"]').addEventListener("click", async () => {
+        const confirmed = await showConfirmModal({
+          title: "Cancel recurring payment",
+          body: `No more payments of ${amount} go to ${friendName}. Payments already made stay in your tally.`,
+          confirmLabel: "Cancel payment",
+          cancelLabel: "Keep",
+        });
+        if (!confirmed) return;
+        box.hidden = true;
+        await cancelRecurringPayment(friendId, recurring.id);
+      });
+    }
+    return box;
+  };
+  if (recurringListEl && recurringTemplate && friendId) {
+    recurringListEl.replaceChildren(...(friend?.recurring_payments ?? []).map(renderRecurringPayment));
   }
 
   const friendKeyEl = root.querySelector('[data-bind="friend-public-key"]');

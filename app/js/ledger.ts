@@ -26,6 +26,7 @@ import {
 } from "./models/data-model.js";
 import { verifyTallyAuthorship } from "./peer/authorship.js";
 import { MessageType } from "./peer/messages.js";
+import { isValidSchedule, normalizeSchedule } from "./recurring.js";
 import { createId } from "./state-utils.js";
 
 // ---------------------------------------------------------------------------
@@ -139,6 +140,8 @@ export interface OpenPaymentRequest {
   /** `true` when the friend asked us; `false` when we asked them. */
   is_incoming: boolean;
   created_at: string;
+  /** Set when the request asks for a recurring payment (js/recurring.js). */
+  schedule: Record<string, unknown> | null;
 }
 
 const requestIdOf = (entry: LedgerEntryModel): string =>
@@ -189,6 +192,7 @@ export const getOpenPaymentRequests = (
       note: typeof entry.payload?.note === "string" ? entry.payload.note.trim() : "",
       is_incoming: isIncoming,
       created_at: entry.originated_at || entry.timestamp,
+      schedule: normalizeSchedule(entry.payload?.schedule),
     });
     open.set(friendId, list);
   }
@@ -396,7 +400,18 @@ const isAbsentOrNonNegativeAmount = (value: unknown): boolean =>
 
 const VALUE_RULES: Record<string, (payload: Record<string, unknown>) => boolean> = {
   [MessageType.TRANSACTION_CREATED]: (p) => isPositiveAmount(p.amount_eur),
-  [MessageType.PAYMENT_REQUEST]: (p) => isPositiveAmount(p.amount_eur),
+  // A request with a schedule asks for a recurring payment.
+  [MessageType.PAYMENT_REQUEST]: (p) =>
+    isPositiveAmount(p.amount_eur) && (p.schedule === undefined || isValidSchedule(p.schedule)),
+  [MessageType.RECURRING_PAYMENT_CREATED]: (p) =>
+    typeof p.recurring_id === "string" &&
+    p.recurring_id.length > 0 &&
+    isPositiveAmount(p.amount_eur) &&
+    isValidSchedule(p.schedule) &&
+    typeof p.first_due_at === "string" &&
+    !Number.isNaN(Date.parse(p.first_due_at)),
+  [MessageType.RECURRING_PAYMENT_CANCEL]: (p) =>
+    typeof p.recurring_id === "string" && p.recurring_id.length > 0,
   [MessageType.TRUST_LIMIT_SUGGESTION]: (p) => isNonNegativeAmount(p.credit_limit_eur),
   [MessageType.FRIEND_ACCEPT]: (p) => isAbsentOrNonNegativeAmount(p.trust_credit_limit_eur),
   [MessageType.FRIEND_REQUEST]: (p) =>
@@ -476,11 +491,20 @@ export const mergeVerifiedEntries = (state: RootState, entries: LedgerEntryModel
 // Sync merge
 // ---------------------------------------------------------------------------
 
+const transactionIdOf = (entry: LedgerEntryModel): string =>
+  entry.type === MessageType.TRANSACTION_CREATED && typeof entry.payload?.transaction_id === "string"
+    ? entry.payload.transaction_id
+    : "";
+
 // Merge a batch of entries received from a sync peer into the local ledger.
 // Entries without a valid Schnorr signature by their claimed `from_user_id`
 // are rejected — this is what blocks a compromised peer from backfilling
 // forged history during recovery. Entries with impossible money values
 // (see hasValidLedgerValues) are rejected too, so they never reach storage.
+// A transaction whose transaction_id is already stored is skipped too: two
+// devices of a payer can both send the same due recurring payment (same
+// derived transaction id, different message ids), and the second copy would
+// otherwise show twice in the logs. Tallies dedupe on the id regardless.
 // Returns the count actually added.
 //
 // Does not persist; callers own persistence so a single save can cover
@@ -493,11 +517,14 @@ export const mergeSyncedLedgerEntries = async (
 
   state.ledger = Array.isArray(state.ledger) ? state.ledger : [];
   const existingIds = new Set(state.ledger.map((entry) => entry.id));
+  const existingTransactionIds = new Set(state.ledger.map(transactionIdOf).filter(Boolean));
   let added = 0;
 
   for (const entry of entries) {
     const normalized = createLedgerEntryModel(entry);
     if (!normalized.id || existingIds.has(normalized.id)) continue;
+    const transactionId = transactionIdOf(normalized);
+    if (transactionId && existingTransactionIds.has(transactionId)) continue;
     if (isDeletedHistoryEntry(state, normalized)) continue;
     if (!hasValidLedgerValues(normalized)) {
       console.warn("[Ledger] Rejected synced entry with invalid values:", normalized.id);
@@ -513,6 +540,7 @@ export const mergeSyncedLedgerEntries = async (
     }
     state.ledger.unshift(normalized);
     existingIds.add(normalized.id);
+    if (transactionId) existingTransactionIds.add(transactionId);
     added += 1;
   }
 

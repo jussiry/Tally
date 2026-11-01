@@ -9,6 +9,7 @@ Slot positions are fixed by CSS so the markup order can vary between pages
 */
 
 .owes-sentence {
+  position: relative;
   display: grid;
   grid-template-columns: auto auto auto auto auto;
   grid-template-rows: auto auto;
@@ -82,7 +83,9 @@ Slot positions are fixed by CSS so the markup order can vary between pages
 }
 
 /* Preview amounts on row 2 — aligned with the name they preview.
-   visibility: hidden keeps the row height stable when there's no amount yet. */
+   visibility: hidden keeps the row height stable when there's no amount yet.
+   Row 2 takes no height: the previews hang below the sentence, into the
+   form's gap, so the gap under the sentence matches the others. */
 .owes-sentence-preview {
   grid-row: 2;
   font-size: 13px;
@@ -90,6 +93,8 @@ Slot positions are fixed by CSS so the markup order can vary between pages
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
   margin-top: -2px;
+  height: 0;
+  overflow: visible;
   visibility: hidden;
   justify-self: start;
 }

@@ -18,6 +18,7 @@ import {
   getOpenPaymentRequests,
   getOpenReactivationRequests,
 } from "../ledger.js";
+import { getActiveRecurringPayments, getUnpaidOccurrences } from "../recurring.js";
 
 export const buildView = (state) => {
   const user = state.user;
@@ -25,6 +26,7 @@ export const buildView = (state) => {
   const openPaymentRequests = getOpenPaymentRequests(state.ledger, user.id);
   const latestDefaults = getLatestFriendshipDefaults(state.ledger, user.id);
   const openReactivations = getOpenReactivationRequests(state.ledger, user.id);
+  const recurringPayments = getActiveRecurringPayments(state.ledger, user.id);
 
   const friendsWithInbound = friends.map((friend) => {
     const contact = state.contacts?.[friend.person_id];
@@ -35,6 +37,13 @@ export const buildView = (state) => {
       // Only an accepted friend can be asked to pay or answer a request.
       pending_payment_requests: isAcceptedFriendshipStatus(friend.friendship_status)
         ? openPaymentRequests.get(friend.person_id) ?? []
+        : [],
+      // Each with when it next pays: the oldest unpaid due time, or the next.
+      recurring_payments: isAcceptedFriendshipStatus(friend.friendship_status)
+        ? (recurringPayments.get(friend.person_id) ?? []).map((recurring) => {
+            const { due, next } = getUnpaidOccurrences(recurring);
+            return { ...recurring, next_due_at: due[0] ?? next };
+          })
         : [],
       // A deactivated friend's page shows the default and any open suggestion.
       default_info: isDeactivatedFriendshipStatus(friend.friendship_status)

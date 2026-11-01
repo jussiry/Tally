@@ -10,6 +10,7 @@ export * from "./friendship.js";
 export * from "./trust-limit.js";
 export * from "./transaction.js";
 export * from "./payment-request.js";
+export * from "./recurring-payment.js";
 export * from "./user.js";
 export * from "./notification-prefs.js";
 export * from "./friendship-default.js";

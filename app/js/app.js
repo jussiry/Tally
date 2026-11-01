@@ -17,6 +17,8 @@ import {
 import { createFriend } from "./commands/friendship.js";
 import { createTransaction } from "./commands/transaction.js";
 import { requestPayment } from "./commands/payment-request.js";
+import { createRecurringPayment } from "./commands/recurring-payment.js";
+import { describeSchedule } from "./recurring.js";
 import { updateTrustLimit } from "./commands/trust-limit.js";
 import { bindTally, initTallyToggles } from "../ui-modules/tally-page/index.js";
 import { bindFriends } from "../ui-modules/friends-page/index.js";
@@ -34,6 +36,7 @@ import { bindTransfer } from "../ui-modules/subpage/transfer.js";
 import { bindNotificationSettings } from "../ui-modules/subpage/notifications.js";
 import { applyDevSeedIfRequested } from "./dev/seed.js";
 import { createRealtimeClient } from "./peer/client.js";
+import { startRecurringScheduler } from "./recurring-scheduler.js";
 import { subscribeToPeerStatusChanges } from "./peer/status.js";
 import { ensureIconSprite } from "./ui/icons.js";
 import { setActiveNav, updateNavBadges } from "./ui/nav.js";
@@ -358,6 +361,21 @@ const loadPage = async (route) => {
           if (!payload.friendId || !Number.isFinite(payload.amount) || payload.amount <= 0) {
             return;
           }
+          if (payload.schedule) {
+            const friend = data?.friends?.find((c) => c.person_id === payload.friendId);
+            const friendName = friend?.person_name || payload.friendId;
+            const confirmed = await showConfirmModal({
+              title: `Pay €${payload.amount} to ${friendName} ${describeSchedule(payload.schedule)}`,
+              body: "Your app sends each payment when it falls due. If the app is closed then, it sends the payment the next time you open it.",
+              confirmLabel: "Set up",
+              variant: ConfirmVariant.SUCCESS,
+              holdMs: 750,
+            });
+            if (!confirmed) return;
+            await createRecurringPayment(payload);
+            navigateTo(`friend/${payload.friendId}`);
+            return;
+          }
           if (payload.amount >= 100) {
             const friend = data?.friends?.find((c) => c.person_id === payload.friendId);
             const friendName = friend?.person_name || payload.friendId;
@@ -506,6 +524,7 @@ const initApp = async () => {
   subscribeToDataChanges(scheduleRouteRefresh);
   subscribeToPeerStatusChanges(scheduleRouteRefresh);
   createRealtimeClient();
+  startRecurringScheduler();
 
   // Offline shell + update detection. When a new version finishes installing,
   // surface it as a transient toast and refresh the route so the settings nav

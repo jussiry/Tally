@@ -17,6 +17,7 @@ import { isAnyRelayConnected } from "../../js/signaling/relay-status-registry.js
 import { initInfiniteList } from "../../js/ui/infinite-list.js";
 import { getOsNotifyTypes } from "../../js/notify/notification-policy.js";
 import { MessageType } from "../../js/peer/messages.js";
+import { describeSchedule } from "../../js/recurring.js";
 
 const formatEur = (amount) => {
   const value = Number(amount);
@@ -53,16 +54,29 @@ const formatLedgerEntry = (entry, myId, namesById, context = {}) => {
     }
     case MessageType.TRANSACTION_CREATED: {
       const amount = formatEur(payload.amount_eur);
+      const recurring = payload.recurring_id ? " (recurring)" : "";
       return isOutgoing
-        ? `You sent ${amount} to ${peerName}`
-        : `${peerName} sent ${amount} to you`;
+        ? `You sent ${amount} to ${peerName}${recurring}`
+        : `${peerName} sent ${amount} to you${recurring}`;
     }
     case MessageType.PAYMENT_REQUEST: {
       const amount = formatEur(payload.amount_eur);
+      const recurrence = payload.schedule ? ` ${describeSchedule(payload.schedule)}` : "";
       return isOutgoing
-        ? `You requested ${amount} from ${peerName}`
-        : `${peerName} requested ${amount} from you`;
+        ? `You requested ${amount}${recurrence} from ${peerName}`
+        : `${peerName} requested ${amount}${recurrence} from you`;
     }
+    case MessageType.RECURRING_PAYMENT_CREATED: {
+      const amount = formatEur(payload.amount_eur);
+      const schedule = describeSchedule(payload.schedule);
+      return isOutgoing
+        ? `You set up a payment of ${amount} to ${peerName}, ${schedule}`
+        : `${peerName} set up a payment of ${amount} to you, ${schedule}`;
+    }
+    case MessageType.RECURRING_PAYMENT_CANCEL:
+      return isOutgoing
+        ? `You cancelled your recurring payment to ${peerName}`
+        : `${peerName} cancelled their recurring payment`;
     case MessageType.PAYMENT_REQUEST_RESPONSE: {
       const accepted = payload.accepted === true;
       if (isOutgoing) {

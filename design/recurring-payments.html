@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Recurring payments — Design</title>
+  <link rel="stylesheet" href="assets/design.css" />
+</head>
+<body>
+  <main class="page" data-status="implemented" data-files="
+    js/recurring.js js/recurring-scheduler.js js/commands/recurring-payment.js
+    js/commands/payment-request.js js/peer/handlers.js js/peer/client.js
+    ui-modules/components/recurrence-field.js ui-modules/subpage/friend.js
+    tests/recurring-payments/run.mjs tests/push-reminders/run.cjs
+  ">
+<h1>Recurring payments</h1>
+<p class="lede">Payments the app makes on its own to a friend, daily, weekly, monthly or yearly, while the app is open, with a relay reminder to open it when one falls due.</p>
+<hr />
+<h2>1. Setting one up</h2>
+<p>On the Send and Request pages, choosing <em>Recurring</em> instead of <em>Once</em> shows how often it recurs and when: the hour for daily, the weekday for weekly, the day of the month for monthly (clamped to short months), the month for yearly (its first day). Weekly, monthly and yearly payments fall at 09:00. Times are the device's local time. The schedule shape and its maths are in <code>js/recurring.js</code>.</p>
+<ul>
+  <li><strong>Send</strong> appends a signed <code>recurring_payment_created</code> to the friend, holding the amount, note, schedule and <code>first_due_at</code>, the schedule's next time after now. Nothing is paid at once.</li>
+  <li><strong>Request</strong> sends one ordinary <a href="glossary.html#payment-request">payment request</a> with a <code>schedule</code>. It is open and answered like any request. Accepting it appends the <code>recurring_payment_created</code> from the payer's side (with the <code>request_id</code>) instead of paying once.</li>
+</ul>
+<p>Only the payer can stop one: <em>Cancel</em> on the friend page, after confirming, appends <code>recurring_payment_cancel</code>. Payments already made stay in the tally.</p>
+
+<h2>2. State lives in the ledger</h2>
+<p>Like payment requests, nothing is stored on the friend record. A recurring payment is active while its created entry has no cancel by the payer (<code>getActiveRecurringPayments</code>). Each payment it makes is an ordinary <code>transaction_created</code> carrying <code>recurring_id</code> and <code>due_at</code>, so it applies to the tally, notifies the friend (<em>Money received</em>) and syncs like any other record. Which due times are paid is read back off those entries.</p>
+<p>Before sending, a device checks the ledger: a due time with a payment entry is paid. Once one device pays, self-sync carries the entry to the others within seconds, so they skip it. Two devices can still race inside that window. For that case the transaction id is derived from the recurring id and the due time (<code>recurringTransactionId</code>), so both copies are the same transaction:</p>
+<ul>
+  <li>tallies dedupe on the transaction id (the friend record and <code>deriveTallyFromLedger</code>);</li>
+  <li>the friend's app ignores the second copy (the inbound handler finds the id already recorded and rolls the entry back);</li>
+  <li>sync stores no second entry with a known transaction id (<code>mergeSyncedLedgerEntries</code>), so the logs show it once.</li>
+</ul>
+
+<h2>3. Sending: only while the app is open</h2>
+<p><code>recurring-scheduler.js</code> runs at start-up, when the app comes back into view, and once a minute. Each run sends every due payment not yet in the ledger, each dated when it fell due, so payments missed while the app was closed all go out when it opens. A Web Lock keeps two tabs from running at once. Payments to a friend who is not accepted wait until the friendship is reactivated.</p>
+<p><strong>Why not the service worker.</strong> Browsers give a web app no timer that wakes it while closed. Periodic Background Sync is Chromium-only, needs an installed app, and runs when the browser chooses. A worker would also need the whole signing, encryption and relay stack, and could never sign with a key held in a browser extension. Routed payments (<a href="tip-7-routed-payments.html">TIP-7</a>) face the same limit.</p>
+
+<h2>4. Reminders from the relay</h2>
+<p>To cover a closed app, the realtime client registers each payment's next due time with every relay (<code>push_reminders</code>, replacing the user's list). Each reminder's text is encrypted to the user's own key, so the relay learns only the times. At that time, if none of the user's devices is connected, the relay sends it as a Web Push. The service worker decrypts it like any <a href="tip-5-os-notifications.html">push hint</a> ("A recurring payment of €5.00 to Bob is due. Open Tally to send it."), and opening the app sends the payment. A connected app sends the payment itself, so the relay drops the reminder.</p>
+<p>Only a device allowed to show notifications registers reminders, so one without permission never clears another device's. The relay keeps them in memory like push subscriptions, and the client re-sends them on every reconnect. Limits (50 per user, 400 days ahead) are in <code>server/signaling/websocket-server.js</code>.</p>
+
+<h2>5. Notifications</h2>
+<ul>
+  <li>A recurring request notifies under <em>Payment requested</em>, worded with its schedule.</li>
+  <li>Each payment notifies the friend under <em>Money received</em>, like any payment.</li>
+  <li><em>Remind to send recurring payments</em> (on by default) controls the relay reminders of §4. It is a self-only setting (<code>SelfNotifyType</code> in <code>notification-policy.js</code>); turned off, the app registers an empty list, which clears the relays' copy.</li>
+  <li>When the app pays, a toast says what was sent, one per friend when catching up. There is no OS notification for it: payments only go out while the app runs.</li>
+</ul>
+
+<h2>6. Tests</h2>
+<p><code>tests/recurring-payments</code> covers the schedule maths (including clamping, year rollover and a daylight-saving change), catching up, the active list, reminders and the value rules. <code>tests/push-reminders</code> runs the relay with a stub push service: a closed app's reminder is pushed, an open app's isn't, and a replaced or invalid list leaves nothing. The peer helper's <code>sendRecurringRequest</code> and <code>showFriend</code> actions drive the request flow from a second user.</p>
+  </main>
+  <script src="assets/pages.js"></script>
+  <script src="assets/design.js"></script>
+</body>
+</html>

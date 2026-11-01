@@ -58,8 +58,13 @@ import {
   ReceiptResult,
 } from "./messages.js";
 import { showNotification } from "../ui/notifications.js";
-import { collectOsNotifyTypesByAuthor } from "../notify/notification-policy.js";
+import {
+  collectOsNotifyTypesByAuthor,
+  getOsNotifyTypes,
+  SelfNotifyType,
+} from "../notify/notification-policy.js";
 import { showLocalOsNotification } from "../notify/local-os-notification.js";
+import { buildRecurringReminders } from "../recurring.js";
 
 // Everything the realtime client needs to decide who to connect to and what
 // to re-deliver after a reconnect. The ledger is included so sync_hello can
@@ -106,6 +111,14 @@ export const getRealtimeSnapshot = async () => {
     // Each peer's latest OS-notification choice (absent → defaults). The
     // outbox flush attaches a push hint only for types the recipient enabled.
     peerOsNotifyTypes: collectOsNotifyTypesByAuthor(state.ledger),
+    // When this user's recurring payments next fall due; the client registers
+    // them with the relays as push reminders (recurring-scheduler.js). None
+    // when the user turned the reminders off, which clears the relays' list.
+    recurringReminders: getOsNotifyTypes(state.ledger, state.user.id).includes(
+      SelfNotifyType.RECURRING_PAYMENT_REMINDER
+    )
+      ? buildRecurringReminders(state)
+      : [],
     outbox: Array.isArray(state.outbox) ? state.outbox.map((entry) => createPeerMessageModel(entry)) : [],
     ledger: Array.isArray(state.ledger) ? state.ledger.map((entry) => createLedgerEntryModel(entry)) : [],
     relays,

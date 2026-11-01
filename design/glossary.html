@@ -107,6 +107,12 @@
         <a href="#transaction">transaction</a> on both sides. Open requests are
         derived from the ledger, never stored; see the
         <a href="spec-ledger.html">Ledger spec</a> §4.3.</dd>
+      <dt id="recurring-payment" data-files="js/recurring.js js/commands/recurring-payment.js js/recurring-scheduler.js"><a class="term-self" href="#recurring-payment">Recurring payment</a></dt>
+      <dd>A payment the payer's app makes on its own to a friend, daily, weekly,
+        monthly or yearly, while the app is open; missed ones go out when it
+        next opens. Set up from Send, or by accepting a
+        <a href="#payment-request">payment request</a> with a schedule; only the
+        payer can cancel it. See <a href="recurring-payments.html">Recurring payments</a>.</dd>
 
       <dt id="trust-limit" data-files="js/commands/trust-limit.js"><a class="term-self" href="#trust-limit">Trust limit, Credit limit</a></dt>
       <dd>The maximum amount you allow a friend to owe you. Lowering takes effect

@@ -50,8 +50,17 @@ function here.
 
 import { formatCurrency } from "../ui/format.js";
 import { MessageType } from "../peer/messages.js";
+import { describeSchedule, normalizeSchedule } from "../recurring.js";
 
 const APP_NAME = "Tally";
+
+// Notifications about the user's own activity rather than a friend's message.
+// They sit in the settings like message types, but no friend ever builds a
+// hint for them. The recurring-payment reminder comes from the relay, which
+// the user's own app asks for (peer/client.js), and only while it is on.
+export const SelfNotifyType = Object.freeze({
+  RECURRING_PAYMENT_REMINDER: "recurring_payment_reminder",
+});
 
 // Every inbound event that shows an in-app toast, as the settings the user
 // sees (settings-page order). A setting may cover several message types — e.g.
@@ -85,6 +94,11 @@ export const OS_NOTIFY_SETTINGS = [
   },
   { label: "Trust limit changes", types: [MessageType.TRUST_LIMIT_SUGGESTION], defaultEnabled: false },
   { label: "Friend changed name", types: [MessageType.NAME_CHANGED], defaultEnabled: false },
+  {
+    label: "Remind to send recurring payments",
+    types: [SelfNotifyType.RECURRING_PAYMENT_REMINDER],
+    defaultEnabled: true,
+  },
 ];
 
 const ALL_TYPES = OS_NOTIFY_SETTINGS.flatMap((setting) => setting.types);
@@ -108,7 +122,8 @@ const TYPES_BEFORE_PER_TYPE_CHOICES = ALL_TYPES.filter(
   (type) =>
     type !== MessageType.FRIENDSHIP_DEFAULT &&
     type !== MessageType.REACTIVATION_REQUEST &&
-    type !== MessageType.REACTIVATION_RESPONSE
+    type !== MessageType.REACTIVATION_RESPONSE &&
+    type !== SelfNotifyType.RECURRING_PAYMENT_REMINDER
 );
 
 // Keep only known types with a boolean choice; unknown types from newer peers
@@ -202,7 +217,9 @@ const HINT_BUILDERS = {
     const amount = normalizeAmount(message.payload?.amount_eur);
     if (amount === null) return null;
     const note = typeof message.payload?.note === "string" ? message.payload.note.trim() : "";
-    const base = `${senderName} requested ${formatCurrency(amount)}`;
+    const schedule = normalizeSchedule(message.payload?.schedule);
+    const recurrence = schedule ? ` ${describeSchedule(schedule)}` : "";
+    const base = `${senderName} requested ${formatCurrency(amount)}${recurrence}`;
     return hint(note ? `${base} — ${note}` : base);
   },
   [MessageType.FRIEND_REQUEST]: (message, senderName) =>

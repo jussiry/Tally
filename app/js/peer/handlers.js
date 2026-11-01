@@ -35,6 +35,7 @@ import { formatCurrency } from "../ui/format.js";
 import { queuePeerMessage } from "./outbox.js";
 import { shareOsNotifyTypesWith } from "../notify/notification-prefs.js";
 import { MessageType } from "./messages.js";
+import { describeSchedule, normalizeSchedule } from "../recurring.js";
 import {
   deriveTallyFromLedger,
   mergeVerifiedEntries,
@@ -302,8 +303,34 @@ const applyInboundPaymentRequest = (state, entry) => {
   if (!Number.isFinite(amount) || amount <= 0) return null;
   if (!isFromAcceptedFriend(state, entry)) return null;
 
+  const schedule = normalizeSchedule(entry.payload?.schedule);
+  const recurrence = schedule ? ` ${describeSchedule(schedule)}` : "";
   return friendNotification(
-    `${getDisplayName(state, entry.from_user_id)} requested €${amount.toFixed(2)}`,
+    `${getDisplayName(state, entry.from_user_id)} requested €${amount.toFixed(2)}${recurrence}`,
+    entry.from_user_id,
+  );
+};
+
+// Recurring payments, like payment requests, are read off the ledger
+// (getActiveRecurringPayments in js/recurring.js); these only vet and word.
+const applyInboundRecurringPaymentCreated = (state, entry) => {
+  const amount = normalizeCurrencyAmount(entry.payload?.amount_eur, NaN);
+  const schedule = normalizeSchedule(entry.payload?.schedule);
+  if (!(amount > 0) || !schedule) return null;
+  if (!isFromAcceptedFriend(state, entry)) return null;
+
+  return friendNotification(
+    `${getDisplayName(state, entry.from_user_id)} set up a payment of €${amount.toFixed(2)} to you, ${describeSchedule(schedule)}`,
+    entry.from_user_id,
+  );
+};
+
+const applyInboundRecurringPaymentCancel = (state, entry) => {
+  if (!asTrimmedString(entry.payload?.recurring_id)) return null;
+  if (!isFromAcceptedFriend(state, entry)) return null;
+
+  return friendNotification(
+    `${getDisplayName(state, entry.from_user_id)} cancelled their recurring payment`,
     entry.from_user_id,
   );
 };
@@ -510,6 +537,10 @@ export const routeInboundEntry = async (state, entry) => {
       return applyInboundPaymentRequestResponse(state, entry);
     case MessageType.PAYMENT_REQUEST_CANCEL:
       return applyInboundPaymentRequestCancel(state, entry);
+    case MessageType.RECURRING_PAYMENT_CREATED:
+      return applyInboundRecurringPaymentCreated(state, entry);
+    case MessageType.RECURRING_PAYMENT_CANCEL:
+      return applyInboundRecurringPaymentCancel(state, entry);
     case MessageType.TRANSACTION_CREATED:
       return applyInboundTransactionCreated(state, entry);
     case MessageType.NAME_CHANGED:
@@ -698,8 +729,9 @@ export const routeOutboundEntry = (state, entry) => {
       return applyOutboundFriendReject(state, entry);
     case MessageType.TRANSACTION_CREATED:
       return applyOutboundTransactionCreated(state, entry);
-    // Payment requests, responses and cancels need no case: their open/closed
-    // state is derived from the ledger, so there is nothing to mutate.
+    // Payment requests, recurring payments, and their responses and cancels
+    // need no case: their state is derived from the ledger, so there is
+    // nothing to mutate.
     case MessageType.TRUST_LIMIT_SUGGESTION:
       return applyOutboundCreditLimitSuggestion(state, entry);
     case MessageType.FRIENDSHIP_DEFAULT:

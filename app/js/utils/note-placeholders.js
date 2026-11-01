@@ -30,5 +30,6 @@ const NOTE_PLACEHOLDERS = [
   "for the camping gear",
 ];
 
+// Prefixed "e.g." so it reads as an example, not as text already entered.
 export const randomNotePlaceholder = () =>
-  NOTE_PLACEHOLDERS[Math.floor(Math.random() * NOTE_PLACEHOLDERS.length)];
+  `e.g. ${NOTE_PLACEHOLDERS[Math.floor(Math.random() * NOTE_PLACEHOLDERS.length)]}`;
