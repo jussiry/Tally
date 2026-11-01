@@ -10,7 +10,10 @@ or network payloads hand over and coerce it into a known good structure. The
 @category data
 */
 
-import { FRIENDSHIP_STATUS_ACCEPTED } from "../utils/friendships.js";
+import {
+  FRIENDSHIP_STATUS_ACCEPTED,
+  PENDING_CREDIT_LIMIT_LOWERED,
+} from "../utils/friendships.js";
 import { DEFAULT_STUN_SERVERS, normalizeStunList } from "../utils/stun-url.js";
 
 export const DATA_MODEL_VERSION = 4;
@@ -32,7 +35,7 @@ export interface PendingNameChange {
 }
 
 /** `true` = incoming proposal, `false` = outgoing, `"lowered"` = auto-applied lower limit. */
-export type PendingCreditLimitDirection = boolean | "lowered" | null;
+export type PendingCreditLimitDirection = boolean | typeof PENDING_CREDIT_LIMIT_LOWERED | null;
 
 export interface FriendModel {
   person_id: string;
@@ -82,7 +85,9 @@ export interface PersonModel {
   connections?: FriendModel[];
 }
 
-export type SignerType = "local" | "nip07";
+export const SIGNER_TYPE_LOCAL = "local";
+export const SIGNER_TYPE_NIP07 = "nip07";
+export type SignerType = typeof SIGNER_TYPE_LOCAL | typeof SIGNER_TYPE_NIP07;
 
 /** A signed Nostr event (NIP-01) used as a Tally authorship proof. */
 export interface SignedNostrEvent {
@@ -290,8 +295,8 @@ export const createFriendModel = (input: any = {}): FriendModel => {
       ? true
       : input.pending_credit_limit_is_incoming === false
       ? false
-      : input.pending_credit_limit_is_incoming === "lowered"
-      ? "lowered"
+      : input.pending_credit_limit_is_incoming === PENDING_CREDIT_LIMIT_LOWERED
+      ? PENDING_CREDIT_LIMIT_LOWERED
       : null;
 
   return {
@@ -346,7 +351,7 @@ export const createPersonModel = (
     public_key_hex: asTrimmedStringOrDefault(input.public_key_hex),
     private_key: includePrivateKeys ? asTrimmedStringOrDefault(input.private_key) : "",
     private_key_hex: includePrivateKeys ? asTrimmedStringOrDefault(input.private_key_hex) : "",
-    signer_type: input.signer_type === "nip07" ? "nip07" : "local",
+    signer_type: input.signer_type === SIGNER_TYPE_NIP07 ? SIGNER_TYPE_NIP07 : SIGNER_TYPE_LOCAL,
     friends,
   };
 };

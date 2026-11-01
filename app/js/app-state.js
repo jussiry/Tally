@@ -15,6 +15,7 @@ domain command module that assumes a state already exists.
 */
 
 import {
+  SIGNER_TYPE_NIP07,
   createEmptyAppState,
   createPersonModel,
   normalizeAppState,
@@ -197,7 +198,7 @@ const createNip07User = async (trimmedName) => {
     public_key_hex: publicKeyHex,
     private_key: "",
     private_key_hex: "",
-    signer_type: "nip07",
+    signer_type: SIGNER_TYPE_NIP07,
     connections: [],
   });
 

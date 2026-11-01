@@ -3,7 +3,7 @@ End-to-end test of defaulting on a friendship and bringing it back, through
 the friend-page UI:
 
   1. Alice owes Bob €20 and defaults on it with a note. Both sides end up with
-     a disabled friendship: listed under "Disabled connections", out of the
+     a deactivated friendship: listed under "Deactivated connections", out of the
      totals, with the default notice and the note on the friend page.
   2. Bob deletes his history with Alice. His friend record and every ledger
      entry with her are gone.
@@ -11,7 +11,7 @@ the friend-page UI:
      amount changed, so its signature no longer matches) is rejected: Bob gets
      no friend record back.
   4. Alice suggests reactivation for real. Her history comes with it, so Bob,
-     who deleted his, sees Alice again as a disabled friend with the €20
+     who deleted his, sees Alice again as a deactivated friend with the €20
      rebuilt from verified records and an incoming suggestion.
   5. Bob accepts. Both friendships are active again, the €20 counts in both
      totals, and a new record moves the tally as usual.
@@ -46,8 +46,10 @@ const waitForFriend = (client, friendId, predicateSource, timeout) =>
     async ([id, source]) => {
       const { loadData } = await import("/dist/js/app-state.js");
       const friend = (await loadData())?.friends.find((f) => f.person_id === id) || null;
+      // Predicates compare against the app's own status constants (S).
+      const S = await import("/dist/js/utils/friendships.js");
       // eslint-disable-next-line no-new-func
-      return new Function("friend", `return (${source});`)(friend);
+      return new Function("friend", "S", `return (${source});`)(friend, S);
     },
     [friendId, predicateSource],
     { timeout, polling: 250 }
@@ -96,13 +98,13 @@ module.exports = {
     await alice.page.fill('[data-bind="confirm-modal-input"]', NOTE);
     await holdConfirm(alice);
 
-    await waitForFriend(alice, bobId, 'friend && friend.friendship_status === "disabled"', timeout);
-    await waitForFriend(bob, aliceId, 'friend && friend.friendship_status === "disabled"', timeout);
+    await waitForFriend(alice, bobId, 'friend && friend.friendship_status === S.FRIENDSHIP_STATUS_DEACTIVATED', timeout);
+    await waitForFriend(bob, aliceId, 'friend && friend.friendship_status === S.FRIENDSHIP_STATUS_DEACTIVATED', timeout);
 
     const bobAfterDefault = await readFriend(bob, aliceId);
     assert.equal(bobAfterDefault.friend.default_info.note, NOTE);
     assert.equal(bobAfterDefault.friend.default_info.is_mine, false);
-    assert.equal(bobAfterDefault.totals.totalTally, 0, "A disabled friend counts in no total");
+    assert.equal(bobAfterDefault.totals.totalTally, 0, "A deactivated friend counts in no total");
 
     // Bob's friend page: history only, with the notice on top.
     await helpers.navigateHash(bob, `friend/${aliceId}`, `${PAGE} [data-section="default-info"]:not([hidden])`);
@@ -114,9 +116,9 @@ module.exports = {
     assert.equal(await activeLabel(bob, '[data-bind="friend-danger-label"]'), "Delete history");
 
     // Bob's friends page lists Alice under "Disabled connections".
-    await helpers.navigateHash(bob, "friends", `${PAGE} [data-section="disabled-friends"]:not([hidden])`);
+    await helpers.navigateHash(bob, "friends", `${PAGE} [data-section="deactivated-friends"]:not([hidden])`);
     assert.equal(await bob.page.locator(`${PAGE} [data-list="friends"] .friend-row`).count(), 0);
-    assert.equal(await bob.page.locator(`${PAGE} [data-list="disabled-friends"] .friend-row`).count(), 1);
+    assert.equal(await bob.page.locator(`${PAGE} [data-list="deactivated-friends"] .friend-row`).count(), 1);
 
     // 2. Bob deletes the history.
     await helpers.navigateHash(bob, `friend/${aliceId}`, `${PAGE} [data-action="friend-danger-action"]`);
@@ -173,7 +175,7 @@ module.exports = {
     await waitForFriend(
       bob,
       aliceId,
-      'friend && friend.friendship_status === "disabled" && friend.pending_reactivation && friend.pending_reactivation.is_incoming',
+      'friend && friend.friendship_status === S.FRIENDSHIP_STATUS_DEACTIVATED && friend.pending_reactivation && friend.pending_reactivation.is_incoming',
       timeout
     );
     const bobRestored = (await readFriend(bob, aliceId)).friend;
@@ -186,8 +188,8 @@ module.exports = {
     await bob.page.click(`${PAGE} [data-action="accept-reactivation"]`);
     await holdConfirm(bob);
 
-    await waitForFriend(bob, aliceId, 'friend && friend.friendship_status === "accepted"', timeout);
-    await waitForFriend(alice, bobId, 'friend && friend.friendship_status === "accepted"', timeout);
+    await waitForFriend(bob, aliceId, 'friend && friend.friendship_status === S.FRIENDSHIP_STATUS_ACCEPTED', timeout);
+    await waitForFriend(alice, bobId, 'friend && friend.friendship_status === S.FRIENDSHIP_STATUS_ACCEPTED', timeout);
     const bobTotals = (await readFriend(bob, aliceId)).totals;
     const aliceTotals = (await readFriend(alice, bobId)).totals;
     assert.equal(bobTotals.totalTally, 20, "The €20 counts for Bob again");

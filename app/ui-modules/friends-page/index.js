@@ -1,7 +1,7 @@
 /*
 This module renders the friends list page. It sorts friendship rows, formats tally and trust summaries, and binds navigation to each friend's detail view.
 
-It also owns the add-friend button behavior and keeps accepted, pending, and rejected friendships visually distinct so the list remains useful after realtime friend requests are introduced. Disabled friendships (after a default) get their own faded list at the bottom.
+It also owns the add-friend button behavior and keeps accepted, pending, and rejected friendships visually distinct so the list remains useful after realtime friend requests are introduced. Deactivated friendships (after a default) get their own faded list at the bottom.
 @category ui
 */
 
@@ -15,7 +15,7 @@ import {
   FRIENDSHIP_STATUS_REJECTED,
   hasActionableNotification,
   isAcceptedFriendshipStatus,
-  isDisabledFriendshipStatus,
+  isDeactivatedFriendshipStatus,
 } from "../../js/utils/friendships.js";
 
 const formatTallyWithLimit = (tallyValue, trustLimitValue) => {
@@ -53,10 +53,10 @@ const getPendingTrustLimit = (friend) => {
 };
 
 const getFriendRowState = (friend) => {
-  // A disabled row looks like an active one; the section fades it.
+  // A deactivated row looks like an active one; the section fades it.
   if (
     isAcceptedFriendshipStatus(friend.friendship_status) ||
-    isDisabledFriendshipStatus(friend.friendship_status)
+    isDeactivatedFriendshipStatus(friend.friendship_status)
   ) {
     const tallyValue = friend.debt_eur || 0;
     return {
@@ -230,13 +230,13 @@ export const bindFriends = (root, data) => {
     const cancelInitialSync = scheduleAfterLayout(syncAddFriendButton);
   }
 
-  const disabledSectionEl = root.querySelector('[data-section="disabled-friends"]');
-  const disabledListEl = root.querySelector('[data-list="disabled-friends"]');
+  const deactivatedSectionEl = root.querySelector('[data-section="deactivated-friends"]');
+  const deactivatedListEl = root.querySelector('[data-list="deactivated-friends"]');
   const activeFriends = data.friends.filter(
-    (friend) => !isDisabledFriendshipStatus(friend.friendship_status)
+    (friend) => !isDeactivatedFriendshipStatus(friend.friendship_status)
   );
-  const disabledFriends = data.friends
-    .filter((friend) => isDisabledFriendshipStatus(friend.friendship_status))
+  const deactivatedFriends = data.friends
+    .filter((friend) => isDeactivatedFriendshipStatus(friend.friendship_status))
     .sort(compareFriendNames);
 
   const sortedFriends = [...activeFriends].sort((leftFriend, rightFriend) => {
@@ -292,8 +292,8 @@ export const bindFriends = (root, data) => {
 
   sortedFriends.forEach((friend) => listContainer.appendChild(renderFriendRow(friend)));
 
-  if (disabledSectionEl && disabledListEl) {
-    disabledListEl.replaceChildren(...disabledFriends.map(renderFriendRow));
-    disabledSectionEl.hidden = disabledFriends.length === 0;
+  if (deactivatedSectionEl && deactivatedListEl) {
+    deactivatedListEl.replaceChildren(...deactivatedFriends.map(renderFriendRow));
+    deactivatedSectionEl.hidden = deactivatedFriends.length === 0;
   }
 };

@@ -18,7 +18,7 @@ import {
 } from "../peer/messages.js";
 import {
   FRIENDSHIP_STATUS_ACCEPTED,
-  FRIENDSHIP_STATUS_DISABLED,
+  FRIENDSHIP_STATUS_DEACTIVATED,
   FRIENDSHIP_STATUS_PENDING_INCOMING,
   FRIENDSHIP_STATUS_PENDING_OUTGOING,
   FRIENDSHIP_STATUS_REJECTED,
@@ -56,9 +56,9 @@ export const createFriend = async ({ friendId, trustLimit, name, relays }) => {
   const existingFriend = findFriend(state.user, normalizedFriendId);
   const existingStatus = existingFriend?.friendship_status || "";
 
-  // A disabled friend comes back only through a reactivation suggestion
+  // A deactivated friend comes back only through a reactivation suggestion
   // (commands/friendship-default.js), from their friend page.
-  if (existingStatus === FRIENDSHIP_STATUS_ACCEPTED || existingStatus === FRIENDSHIP_STATUS_DISABLED) {
+  if (existingStatus === FRIENDSHIP_STATUS_ACCEPTED || existingStatus === FRIENDSHIP_STATUS_DEACTIVATED) {
     return persistAndBuildView(state);
   }
 

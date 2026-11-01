@@ -228,7 +228,7 @@ export interface FriendshipDefault {
 }
 
 // The latest friendship_default between this user and each friend, either
-// direction. The friend page shows it while the friendship is disabled.
+// direction. The friend page shows it while the friendship is deactivated.
 export const getLatestFriendshipDefaults = (
   ledger: LedgerEntryModel[] | null | undefined,
   myId: string
@@ -325,7 +325,7 @@ export const deriveTallyFromLedger = (
 // Deleted history
 // ---------------------------------------------------------------------------
 
-// When the user deletes their history with a disabled friend, a self-addressed
+// When the user deletes their history with a deactivated friend, a self-addressed
 // friendship_history_deleted entry records it, so the user's other devices
 // delete their copy too and sync can't bring the old entries back. An entry
 // counts as deleted history when it concerns a friend this user has no record

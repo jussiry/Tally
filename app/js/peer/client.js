@@ -72,7 +72,11 @@ import {
   verifyLedgerEntryAuthorship,
 } from "../ledger.js";
 import { createRelayPool } from "../signaling/relay-pool.js";
-import { createPeerMesh } from "./mesh.js";
+import {
+  PEER_CLOSE_REASON_SERVER_DISCONNECT,
+  PEER_CLOSE_REASON_STALE_REPLACED,
+  createPeerMesh,
+} from "./mesh.js";
 import {
   replaceConnectedPeerIds,
   replaceConnectedSelfDeviceIds,
@@ -379,7 +383,7 @@ const createRealtimeClient = () => {
     ({ peerUserId, peerKey, reason, wasConnected }) => {
       forgetSync(peerKey);
       if (!wasConnected) return;
-      if (reason === "server_disconnect" || reason === "stale_replaced") return;
+      if (reason === PEER_CLOSE_REASON_SERVER_DISCONNECT || reason === PEER_CLOSE_REASON_STALE_REPLACED) return;
       requestPeerConnectionIfNeeded(
         peerUserId,
         "Retrying peer connection after unexpected close"

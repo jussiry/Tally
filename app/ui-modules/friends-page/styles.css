@@ -7,16 +7,16 @@
   gap: 14px;
 }
 
-.friends-disabled {
+.friends-deactivated {
   margin-top: 32px;
 }
 
-.friends-disabled[hidden] {
+.friends-deactivated[hidden] {
   display: none;
 }
 
 /* Same rows as active friends, faded: history only, no activity. */
-.friends-disabled .friend-row {
+.friends-deactivated .friend-row {
   opacity: 0.55;
 }
 

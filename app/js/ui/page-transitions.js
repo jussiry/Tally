@@ -5,6 +5,15 @@ It also guards against race conditions during rapid navigation by sequencing swa
 @category ui
 */
 
+import {
+  ROUTE_ADD_FRIEND,
+  ROUTE_FRIEND,
+  ROUTE_PAGE,
+  ROUTE_RECORD,
+  ROUTE_REQUEST,
+  ROUTE_TRUST,
+} from "./routes.js";
+
 const PAGE_CLASS = "page-view";
 const ACTIVE_CLASS = "is-active";
 const ENTERING_CLASS = "is-entering";
@@ -101,13 +110,13 @@ export const getSlideDirection = (fromRoute, toRoute, navOrder) => {
 
   const getDepth = (route) => {
     if (!route) return 0;
-    if (route.type === "page") return 0;
-    if (route.type === "friend" || route.type === "add-friend") return 1;
-    if (route.type === "record" || route.type === "request" || route.type === "trust") return 2;
+    if (route.type === ROUTE_PAGE) return 0;
+    if (route.type === ROUTE_FRIEND || route.type === ROUTE_ADD_FRIEND) return 1;
+    if (route.type === ROUTE_RECORD || route.type === ROUTE_REQUEST || route.type === ROUTE_TRUST) return 2;
     return 1;
   };
 
-  if (fromRoute.type !== "page" && toRoute.type === "page") {
+  if (fromRoute.type !== ROUTE_PAGE && toRoute.type === ROUTE_PAGE) {
     const fromPage = fromRoute.mainPage;
     const toPage = toRoute.page;
     if (fromPage && toPage) {
@@ -129,7 +138,7 @@ export const getSlideDirection = (fromRoute, toRoute, navOrder) => {
     return toDepth > fromDepth ? "from-right" : "from-left";
   }
 
-  if (fromRoute.type === "page" && toRoute.type === "page") {
+  if (fromRoute.type === ROUTE_PAGE && toRoute.type === ROUTE_PAGE) {
     const fromIndex = navOrder.indexOf(fromRoute.page);
     const toIndex = navOrder.indexOf(toRoute.page);
     if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) return null;

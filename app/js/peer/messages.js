@@ -18,7 +18,7 @@ export const PEER_MESSAGE_TYPE_PAYMENT_REQUEST_CANCEL = "payment_request_cancel"
 export const PEER_MESSAGE_TYPE_FRIENDSHIP_DEFAULT = "friendship_default";
 export const PEER_MESSAGE_TYPE_REACTIVATION_REQUEST = "reactivation_request";
 export const PEER_MESSAGE_TYPE_REACTIVATION_RESPONSE = "reactivation_response";
-// Self-addressed: the author deleted their history with a disabled friend.
+// Self-addressed: the author deleted their history with a deactivated friend.
 export const PEER_MESSAGE_TYPE_HISTORY_DELETED = "friendship_history_deleted";
 // Which events the author wants as OS notifications; see notify/notification-policy.js.
 export const PEER_MESSAGE_TYPE_NOTIFICATION_PREFS = "notification_prefs";

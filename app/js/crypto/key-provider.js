@@ -36,6 +36,7 @@ import { schnorrSignHex, derivePublicKeyHex } from "./secp256k1.js";
 import { signNostrEvent } from "./nostr-event.js";
 import { encrypt as nip44Encrypt, decrypt as nip44Decrypt } from "./nip44.js";
 import { normalizePublicKeyHex } from "../utils/nostr-keys.js";
+import { SIGNER_TYPE_LOCAL, SIGNER_TYPE_NIP07 } from "../models/data-model.js";
 
 // A provider backed by an in-memory private key. This is the original
 // behaviour, just behind the interface: canonical Schnorr signing and AES-GCM
@@ -49,7 +50,7 @@ export const createLocalKeyProvider = ({ privateKeyHex, publicKeyHex } = {}) => 
   const resolvedPublicKeyHex = publicKeyHex || derivePublicKeyHex(privateKeyHex);
 
   return {
-    type: "local",
+    type: SIGNER_TYPE_LOCAL,
     getPublicKeyHex: () => resolvedPublicKeyHex,
     signCanonicalDigest: async (digestHex) => schnorrSignHex(digestHex, privateKeyHex),
     // Sign a Tally authorship event ({ kind, created_at, tags, content }) with
@@ -107,7 +108,7 @@ export const createNip07KeyProvider = ({ publicKeyHex } = {}) => {
   };
 
   return {
-    type: "nip07",
+    type: SIGNER_TYPE_NIP07,
     getPublicKeyHex: () => publicKeyHex,
     signCanonicalDigest: async () => {
       throw new Error("A NIP-07 signer cannot sign a bare digest; use signEvent.");
@@ -134,7 +135,7 @@ export const createKeyProviderFromState = (state) => {
   const user = state?.user;
   if (!user) return null;
 
-  if (user.signer_type === "nip07") {
+  if (user.signer_type === SIGNER_TYPE_NIP07) {
     if (!user.public_key_hex || !isNip07Available()) {
       return null;
     }

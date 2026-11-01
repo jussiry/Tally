@@ -12,7 +12,12 @@ the self-mesh sync path apply the same state transition.
 */
 
 import { normalizeCurrencyAmount } from "../models/data-model.js";
-import { isPeerEligibleFriendshipStatus, FRIENDSHIP_STATUS_PENDING_INCOMING, FRIENDSHIP_STATUS_REJECTED } from "../utils/friendships.js";
+import {
+  isPeerEligibleFriendshipStatus,
+  FRIENDSHIP_STATUS_PENDING_INCOMING,
+  FRIENDSHIP_STATUS_REJECTED,
+  PENDING_CREDIT_LIMIT_LOWERED,
+} from "../utils/friendships.js";
 import { asTrimmedString, hasUser } from "../state-utils.js";
 import { buildView } from "../ui/view-model.js";
 import {
@@ -142,7 +147,7 @@ export const dismissTrustLimitNotification = async (friendId) => {
   }
 
   const friend = getFriend(state, normalizedFriendId);
-  if (!friend || friend.pending_credit_limit_is_incoming !== "lowered") {
+  if (!friend || friend.pending_credit_limit_is_incoming !== PENDING_CREDIT_LIMIT_LOWERED) {
     return loadData();
   }
 

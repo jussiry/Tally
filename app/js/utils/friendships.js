@@ -12,14 +12,20 @@ export const FRIENDSHIP_STATUS_REJECTED = "rejected";
 // One side defaulted on (or absolved, or deactivated) the friendship. The
 // records stay, but count in no total and allow no new activity until both
 // agree to reactivate.
-export const FRIENDSHIP_STATUS_DISABLED = "disabled";
+// Stored as "disabled" (the first name); the UI says deactivated.
+export const FRIENDSHIP_STATUS_DEACTIVATED = "disabled";
+
+// `pending_credit_limit_is_incoming` is true (incoming proposal), false
+// (outgoing), null, or this: the friend lowered the limit, which applied at
+// once and waits only to be acknowledged.
+export const PENDING_CREDIT_LIMIT_LOWERED = "lowered";
 
 export const isAcceptedFriendshipStatus = (status) => {
   return status === FRIENDSHIP_STATUS_ACCEPTED;
 };
 
-export const isDisabledFriendshipStatus = (status) => {
-  return status === FRIENDSHIP_STATUS_DISABLED;
+export const isDeactivatedFriendshipStatus = (status) => {
+  return status === FRIENDSHIP_STATUS_DEACTIVATED;
 };
 
 export const isPendingFriendshipStatus = (status) => {
@@ -36,7 +42,7 @@ export const isPeerEligibleFriendshipStatus = (status) => {
 export const hasActionableNotification = (connection) => {
   if (connection.friendship_status === FRIENDSHIP_STATUS_PENDING_INCOMING) return true;
   if (connection.pending_credit_limit_is_incoming === true) return true;
-  if (connection.pending_credit_limit_is_incoming === "lowered") return true;
+  if (connection.pending_credit_limit_is_incoming === PENDING_CREDIT_LIMIT_LOWERED) return true;
   if (connection.pending_payment_requests?.some((request) => request.is_incoming)) return true;
   if (connection.pending_name_change) return true;
   if (connection.pending_reactivation?.is_incoming) return true;

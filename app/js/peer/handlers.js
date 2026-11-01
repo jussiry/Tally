@@ -57,12 +57,13 @@ import {
 import { asTrimmedString, createId } from "../state-utils.js";
 import {
   FRIENDSHIP_STATUS_ACCEPTED,
-  FRIENDSHIP_STATUS_DISABLED,
+  FRIENDSHIP_STATUS_DEACTIVATED,
   FRIENDSHIP_STATUS_PENDING_INCOMING,
   FRIENDSHIP_STATUS_PENDING_OUTGOING,
   FRIENDSHIP_STATUS_REJECTED,
+  PENDING_CREDIT_LIMIT_LOWERED,
   isAcceptedFriendshipStatus,
-  isDisabledFriendshipStatus,
+  isDeactivatedFriendshipStatus,
   isPeerEligibleFriendshipStatus,
 } from "../utils/friendships.js";
 
@@ -111,11 +112,11 @@ const applyInboundFriendRequest = async (state, entry) => {
     return friendNotification(`${requesterName} is now your friend`, entry.from_user_id);
   }
 
-  // A disabled friendship comes back only through a reactivation suggestion,
+  // A deactivated friendship comes back only through a reactivation suggestion,
   // never a fresh request that would revive the old tally unannounced.
   if (
     isAcceptedFriendshipStatus(existingFriend?.friendship_status) ||
-    isDisabledFriendshipStatus(existingFriend?.friendship_status)
+    isDeactivatedFriendshipStatus(existingFriend?.friendship_status)
   ) {
     return null;
   }
@@ -167,7 +168,7 @@ const applyInboundFriendAccept = async (state, entry) => {
   }
   if (
     friend.friendship_status === FRIENDSHIP_STATUS_REJECTED ||
-    isDisabledFriendshipStatus(friend.friendship_status)
+    isDeactivatedFriendshipStatus(friend.friendship_status)
   ) {
     return null;
   }
@@ -252,7 +253,7 @@ const applyInboundTrustLimitSuggestion = (state, entry) => {
     // Lower: apply automatically, show notification
     friend.trust_credit_limit_eur = trustLimit;
     friend.pending_credit_limit_eur = trustLimit;
-    friend.pending_credit_limit_is_incoming = "lowered";
+    friend.pending_credit_limit_is_incoming = PENDING_CREDIT_LIMIT_LOWERED;
     return friendNotification(
       `${displayName} lowered trust limit to ${formatCurrency(trustLimit)}`,
       entry.from_user_id,
@@ -403,7 +404,7 @@ const applyInboundFriendshipDefault = (state, entry) => {
   if (
     !friend ||
     !(isAcceptedFriendshipStatus(friend.friendship_status) ||
-      isDisabledFriendshipStatus(friend.friendship_status))
+      isDeactivatedFriendshipStatus(friend.friendship_status))
   ) {
     return null;
   }
@@ -423,12 +424,12 @@ const applyInboundFriendshipDefault = (state, entry) => {
 // A reactivation suggestion carries the requester's copy of the shared
 // history. Every entry is verified (ledger.ts verifyReactivationHistory) and
 // merged, so a user who deleted the history gets it back — first as a
-// disabled friend with the rebuilt tally, active again only once they accept.
+// deactivated friend with the rebuilt tally, active again only once they accept.
 const applyInboundReactivationRequest = async (state, entry) => {
   const requesterId = entry.from_user_id;
   if (!asTrimmedString(entry.payload?.request_id)) return null;
   let friend = getFriend(state, requesterId);
-  if (friend && !isDisabledFriendshipStatus(friend.friendship_status)) return null;
+  if (friend && !isDeactivatedFriendshipStatus(friend.friendship_status)) return null;
 
   const history = await verifyReactivationHistory(entry.payload?.history, requesterId, state.user.id);
   if (!history) {
@@ -440,7 +441,7 @@ const applyInboundReactivationRequest = async (state, entry) => {
   if (!friend) {
     const requesterName = asTrimmedString(entry.payload?.requester_name) || requesterId;
     friend = ensureFriend(state, requesterId, requesterName, {
-      friendshipStatus: FRIENDSHIP_STATUS_DISABLED,
+      friendshipStatus: FRIENDSHIP_STATUS_DEACTIVATED,
     });
     if (!friend) return null;
     ensureContactBackLink(state, requesterId, requesterName);
@@ -480,7 +481,7 @@ const hasOwnReactivationRequest = (state, friendId, requestId) =>
 const applyInboundReactivationResponse = async (state, entry) => {
   const requestId = asTrimmedString(entry.payload?.request_id);
   const friend = getFriend(state, entry.from_user_id);
-  if (!requestId || !friend || !isDisabledFriendshipStatus(friend.friendship_status)) return null;
+  if (!requestId || !friend || !isDeactivatedFriendshipStatus(friend.friendship_status)) return null;
   if (!hasOwnReactivationRequest(state, entry.from_user_id, requestId)) return null;
 
   const displayName = getDisplayName(state, entry.from_user_id);
@@ -583,7 +584,7 @@ const applyOutboundFriendAccept = (state, entry) => {
       friendshipStatus: FRIENDSHIP_STATUS_ACCEPTED,
     });
     changed = !!friend;
-  } else if (isDisabledFriendshipStatus(friend.friendship_status)) {
+  } else if (isDeactivatedFriendshipStatus(friend.friendship_status)) {
     // An old accept replayed by sync must not undo a later default.
     return false;
   } else if (friend.friendship_status !== FRIENDSHIP_STATUS_ACCEPTED) {
@@ -689,7 +690,7 @@ const applyOutboundFriendshipDefault = (state, entry) => {
 const applyOutboundReactivationResponse = (state, entry) => {
   if (entry.payload?.accepted !== true) return false;
   const friend = getFriend(state, asTrimmedString(entry.to_user_id));
-  if (!friend || !isDisabledFriendshipStatus(friend.friendship_status)) return false;
+  if (!friend || !isDeactivatedFriendshipStatus(friend.friendship_status)) return false;
   friend.friendship_status = FRIENDSHIP_STATUS_ACCEPTED;
   return true;
 };

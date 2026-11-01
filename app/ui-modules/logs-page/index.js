@@ -17,11 +17,20 @@ import { isAnyRelayConnected } from "../../js/signaling/relay-status-registry.js
 import { initInfiniteList } from "../../js/ui/infinite-list.js";
 import { getOsNotifyTypes } from "../../js/notify/notification-policy.js";
 import {
+  PEER_MESSAGE_TYPE_FRIEND_ACCEPT,
+  PEER_MESSAGE_TYPE_FRIEND_REJECT,
+  PEER_MESSAGE_TYPE_FRIEND_REQUEST,
   PEER_MESSAGE_TYPE_FRIENDSHIP_DEFAULT,
   PEER_MESSAGE_TYPE_HISTORY_DELETED,
+  PEER_MESSAGE_TYPE_NAME_CHANGED,
   PEER_MESSAGE_TYPE_NOTIFICATION_PREFS,
+  PEER_MESSAGE_TYPE_PAYMENT_REQUEST,
+  PEER_MESSAGE_TYPE_PAYMENT_REQUEST_CANCEL,
+  PEER_MESSAGE_TYPE_PAYMENT_REQUEST_RESPONSE,
   PEER_MESSAGE_TYPE_REACTIVATION_REQUEST,
   PEER_MESSAGE_TYPE_REACTIVATION_RESPONSE,
+  PEER_MESSAGE_TYPE_TRANSACTION_CREATED,
+  PEER_MESSAGE_TYPE_TRUST_LIMIT_SUGGESTION,
 } from "../../js/peer/messages.js";
 
 const formatEur = (amount) => {
@@ -39,37 +48,37 @@ const formatLedgerEntry = (entry, myId, namesById, context = {}) => {
   const payload = entry.payload || {};
 
   switch (entry.type) {
-    case "friend_request":
+    case PEER_MESSAGE_TYPE_FRIEND_REQUEST:
       return isOutgoing
         ? `Friend request sent to ${peerName}`
         : `Friend request received from ${peerName}`;
-    case "friend_accept":
+    case PEER_MESSAGE_TYPE_FRIEND_ACCEPT:
       return isOutgoing
         ? `You accepted ${peerName} as a friend`
         : `${peerName} accepted your friend request`;
-    case "friend_reject":
+    case PEER_MESSAGE_TYPE_FRIEND_REJECT:
       return isOutgoing
         ? `You rejected friend request from ${peerName}`
         : `${peerName} rejected your friend request`;
-    case "credit_limit_suggestion": {
+    case PEER_MESSAGE_TYPE_TRUST_LIMIT_SUGGESTION: {
       const limit = formatEur(payload.credit_limit_eur);
       return isOutgoing
         ? `You suggested trust limit of ${limit} with ${peerName}`
         : `${peerName} suggested trust limit of ${limit}`;
     }
-    case "transaction_created": {
+    case PEER_MESSAGE_TYPE_TRANSACTION_CREATED: {
       const amount = formatEur(payload.amount_eur);
       return isOutgoing
         ? `You sent ${amount} to ${peerName}`
         : `${peerName} sent ${amount} to you`;
     }
-    case "payment_request": {
+    case PEER_MESSAGE_TYPE_PAYMENT_REQUEST: {
       const amount = formatEur(payload.amount_eur);
       return isOutgoing
         ? `You requested ${amount} from ${peerName}`
         : `${peerName} requested ${amount} from you`;
     }
-    case "payment_request_response": {
+    case PEER_MESSAGE_TYPE_PAYMENT_REQUEST_RESPONSE: {
       const accepted = payload.accepted === true;
       if (isOutgoing) {
         return accepted
@@ -80,7 +89,7 @@ const formatLedgerEntry = (entry, myId, namesById, context = {}) => {
         ? `${peerName} accepted your payment request`
         : `${peerName} declined your payment request`;
     }
-    case "payment_request_cancel":
+    case PEER_MESSAGE_TYPE_PAYMENT_REQUEST_CANCEL:
       return isOutgoing
         ? `You cancelled your payment request to ${peerName}`
         : `${peerName} cancelled their payment request`;
@@ -118,8 +127,8 @@ const formatLedgerEntry = (entry, myId, namesById, context = {}) => {
         : `${peerName} declined reactivating your friendship`;
     }
     case PEER_MESSAGE_TYPE_HISTORY_DELETED:
-      return "You deleted your history with a disabled friend";
-    case "name_changed": {
+      return "You deleted your history with a deactivated friend";
+    case PEER_MESSAGE_TYPE_NAME_CHANGED: {
       const newName = payload.name || "";
       if (isOutgoing) {
         return `You changed your name to ${newName}`;
@@ -181,7 +190,7 @@ export const bindLogs = (root, data) => {
     return aTs < bTs ? -1 : aTs > bTs ? 1 : 0;
   });
   chronological.forEach((entry) => {
-    if (entry.type === "name_changed" && typeof entry.payload?.name === "string") {
+    if (entry.type === PEER_MESSAGE_TYPE_NAME_CHANGED && typeof entry.payload?.name === "string") {
       const userId = entry.from_user_id;
       if (nameAtTime[userId]) {
         previousNameByEntryId[entry.id] = nameAtTime[userId];

@@ -18,7 +18,7 @@ import {
   createPeerMessageModel,
 } from "../models/data-model.js";
 import {
-  isDisabledFriendshipStatus,
+  isDeactivatedFriendshipStatus,
   isPeerEligibleFriendshipStatus,
 } from "../utils/friendships.js";
 import { asTrimmedString, hasUser } from "../state-utils.js";
@@ -55,6 +55,7 @@ import {
 } from "../ledger.js";
 import {
   PEER_MESSAGE_TYPE_HISTORY_DELETED,
+  PEER_MESSAGE_TYPE_NAME_CHANGED,
   PEER_MESSAGE_TYPE_RECEIVED,
   PEER_RECEIPT_RESULT_IGNORED,
   PEER_RECEIPT_RESULT_PROCESSED,
@@ -150,7 +151,7 @@ const applyHistoryDeletions = (state, entries) => {
     if (entry.from_user_id !== state.user.id) return;
     const friendId = entry.payload?.friend_id;
     const friend = getFriend(state, friendId);
-    if (friend && !isDisabledFriendshipStatus(friend.friendship_status)) return;
+    if (friend && !isDeactivatedFriendshipStatus(friend.friendship_status)) return;
     deleteFriendHistory(state, friendId, { upTo: entry.originated_at || entry.timestamp });
   });
 };
@@ -293,7 +294,7 @@ export const applyOwnNameFromLedger = async () => {
   const myId = state.user.id;
   const nameEntries = (Array.isArray(state.ledger) ? state.ledger : []).filter(
     (e) =>
-      e.type === "name_changed" &&
+      e.type === PEER_MESSAGE_TYPE_NAME_CHANGED &&
       e.from_user_id === myId &&
       typeof e.payload?.name === "string" &&
       e.payload.name.trim()

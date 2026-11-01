@@ -41,6 +41,19 @@ const buildRtcConfiguration = (stunServers) => {
 };
 
 const DATA_CHANNEL_LABEL = "iou-json";
+
+// Why a peer connection closed, as onPeerClosed reports it. client.js retries
+// unexpected closes and skips the deliberate ones (server disconnect, replaced
+// by a newer connection). A failed connection reports its RTC state instead.
+export const PEER_CLOSE_REASON_CHANNEL_CLOSED = "channel_closed";
+export const PEER_CLOSE_REASON_STALE_REPLACED = "stale_replaced";
+export const PEER_CLOSE_REASON_DISCONNECTED_TIMEOUT = "disconnected_timeout";
+export const PEER_CLOSE_REASON_WAKE_FROM_SUSPEND = "wake_from_suspend";
+export const PEER_CLOSE_REASON_SERVER_DISCONNECT = "server_disconnect";
+
+// The two kinds of WebRTC signal relayed between peers.
+const SIGNAL_DESCRIPTION = "description";
+const SIGNAL_CANDIDATE = "candidate";
 // How long a peer is allowed to linger in the "disconnected" state while we
 // try an ICE restart before we give up and tear the connection down.
 const PEER_GRACE_PERIOD_MS = 10000;
@@ -191,7 +204,7 @@ const createPeerMesh = (
       }
 
       closePeer(peerKey, {
-        reason: "channel_closed",
+        reason: PEER_CLOSE_REASON_CHANNEL_CLOSED,
       });
     });
     channel.addEventListener("message", (event) => {
@@ -241,7 +254,7 @@ const createPeerMesh = (
         logPeerEvent(
           `Replacing stale peer ${shortKey(normalizedPeerKey)} (${state})`
         );
-        closePeer(normalizedPeerKey, { reason: "stale_replaced" });
+        closePeer(normalizedPeerKey, { reason: PEER_CLOSE_REASON_STALE_REPLACED });
       } else {
         return existingPeer;
       }
@@ -287,7 +300,7 @@ const createPeerMesh = (
         await connection.setLocalDescription();
         logPeerEvent(`Sending offer to ${shortKey(normalizedPeerKey)}`);
         dispatchSignal(peer, {
-          type: "description",
+          type: SIGNAL_DESCRIPTION,
           description: connection.localDescription,
         });
       } catch (error) {
@@ -305,7 +318,7 @@ const createPeerMesh = (
       }
 
       dispatchSignal(peer, {
-        type: "candidate",
+        type: SIGNAL_CANDIDATE,
         candidate: event.candidate,
       });
     });
@@ -353,7 +366,7 @@ const createPeerMesh = (
           }
 
           closePeer(normalizedPeerKey, {
-            reason: "disconnected_timeout",
+            reason: PEER_CLOSE_REASON_DISCONNECTED_TIMEOUT,
           });
         }, PEER_GRACE_PERIOD_MS);
         return;
@@ -422,7 +435,7 @@ const createPeerMesh = (
       await peer.connection.setLocalDescription();
       logPeerEvent(`Sending answer to ${shortKey(peer.peerKey)}`);
       dispatchSignal(peer, {
-        type: "description",
+        type: SIGNAL_DESCRIPTION,
         description: peer.connection.localDescription,
       });
     }
@@ -477,7 +490,7 @@ const createPeerMesh = (
       `Wake from suspend (gap ${gap}ms), resetting ${peerKeys.length} peer(s)`
     );
     peerKeys.forEach((peerKey) => {
-      closePeer(peerKey, { reason: "wake_from_suspend" });
+      closePeer(peerKey, { reason: PEER_CLOSE_REASON_WAKE_FROM_SUSPEND });
     });
   }, WAKE_CHECK_INTERVAL_MS);
 
@@ -486,7 +499,7 @@ const createPeerMesh = (
     closePeer: (peerKey) => {
       const normalizedPeerKey = normalizeKey(peerKey);
       if (normalizedPeerKey) {
-        closePeer(normalizedPeerKey, { reason: "server_disconnect" });
+        closePeer(normalizedPeerKey, { reason: PEER_CLOSE_REASON_SERVER_DISCONNECT });
       }
     },
     hasPeer: (peerKey) => {
@@ -511,9 +524,9 @@ const createPeerMesh = (
         return;
       }
 
-      if (signal.type === "description") {
+      if (signal.type === SIGNAL_DESCRIPTION) {
         await handleDescription(peer, signal.description);
-      } else if (signal.type === "candidate") {
+      } else if (signal.type === SIGNAL_CANDIDATE) {
         await handleCandidate(peer, signal.candidate);
       }
     },

@@ -4,7 +4,7 @@ Defaulting on a friendship, and the way back.
 Defaulting (the friend page's danger action — called absolving when the friend
 owes you, deactivating when the tally is zero) tells the friend with a signed
 friendship_default message and an optional note. Both sides then keep the
-friendship disabled: its records stay visible, but they count in no total and
+friendship deactivated: its records stay visible, but they count in no total and
 allow no new activity.
 
 Either side can suggest reactivation. The suggestion carries the requester's
@@ -31,7 +31,7 @@ import {
 } from "../peer/messages.js";
 import {
   isAcceptedFriendshipStatus,
-  isDisabledFriendshipStatus,
+  isDeactivatedFriendshipStatus,
 } from "../utils/friendships.js";
 import { asTrimmedString, createId, hasUser } from "../state-utils.js";
 import { loadData, loadState, persistAndBuildView } from "../app-state.js";
@@ -90,7 +90,7 @@ const respond = async (state, toUserId, requestId, accepted) => {
 };
 
 export const suggestReactivation = async (friendId) => {
-  const found = await loadFriend(friendId, isDisabledFriendshipStatus);
+  const found = await loadFriend(friendId, isDeactivatedFriendshipStatus);
   if (!found) return loadData();
   const { state, friend, friendId: toUserId } = found;
 
@@ -121,7 +121,7 @@ export const suggestReactivation = async (friendId) => {
 };
 
 export const respondToReactivation = async (friendId, requestId, accepted) => {
-  const found = await loadFriend(friendId, isDisabledFriendshipStatus);
+  const found = await loadFriend(friendId, isDeactivatedFriendshipStatus);
   if (!found) return loadData();
   const { state, friendId: toUserId } = found;
 
@@ -154,8 +154,8 @@ const appendHistoryDeletedEntry = async (state, friendId) => {
   appendLedgerEntryFromMessage(state, { ...unsigned, authorship });
 };
 
-export const deleteDisabledFriendHistory = async (friendId) => {
-  const found = await loadFriend(friendId, isDisabledFriendshipStatus);
+export const deleteDeactivatedFriendHistory = async (friendId) => {
+  const found = await loadFriend(friendId, isDeactivatedFriendshipStatus);
   if (!found) return loadData();
   const { state, friendId: deletedId } = found;
 

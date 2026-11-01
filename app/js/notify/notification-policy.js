@@ -73,7 +73,7 @@ const APP_NAME = "Tally";
 // published choice is still a plain list of types, so regrouping settings
 // never changes the wire format. The three settings that were OS-notifiable
 // before per-type choice existed stay on by default, as does a friendship
-// being disabled or reactivated (rare, and it matters); the rest are opt-in.
+// being deactivated or reactivated (rare, and it matters); the rest are opt-in.
 export const OS_NOTIFY_SETTINGS = [
   { label: "Money received", types: [PEER_MESSAGE_TYPE_TRANSACTION_CREATED], defaultEnabled: true },
   { label: "Payment requested", types: [PEER_MESSAGE_TYPE_PAYMENT_REQUEST], defaultEnabled: true },
@@ -89,7 +89,7 @@ export const OS_NOTIFY_SETTINGS = [
     defaultEnabled: false,
   },
   {
-    label: "Friendship disabled or reactivated",
+    label: "Friendship deactivated or reactivated",
     types: [
       PEER_MESSAGE_TYPE_FRIENDSHIP_DEFAULT,
       PEER_MESSAGE_TYPE_REACTIVATION_REQUEST,

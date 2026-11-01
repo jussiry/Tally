@@ -24,6 +24,10 @@ import { formatMarkdownish } from "../../js/utils/markdownish.js";
 
 const DEFAULT_HOLD_MS = 1500;
 
+// The confirm button's colour: red for destructive actions, green otherwise.
+export const CONFIRM_VARIANT_DANGER = "danger";
+export const CONFIRM_VARIANT_SUCCESS = "success";
+
 const createElement = (tag, className, attrs = {}) => {
   const el = document.createElement(tag);
   if (className) el.className = className;
@@ -41,8 +45,7 @@ export const showConfirmModal = ({
   confirmButtonLabel = null,
   cancelLabel = "Cancel",
   holdMs = DEFAULT_HOLD_MS,
-  // 'danger' (default, red) | 'success' (green)
-  variant = "danger",
+  variant = CONFIRM_VARIANT_DANGER,
   textInput = null,
 } = {}) => {
   return new Promise((resolve) => {
@@ -89,7 +92,7 @@ export const showConfirmModal = ({
     const cancelBtn = createElement("button", "confirm-modal-cancel", { type: "button" });
     cancelBtn.textContent = cancelLabel;
 
-    const confirmBtnClass = variant === "success"
+    const confirmBtnClass = variant === CONFIRM_VARIANT_SUCCESS
       ? "confirm-modal-confirm confirm-modal-confirm--success"
       : "confirm-modal-confirm";
     const confirmBtn = createElement("button", confirmBtnClass, { type: "button" });

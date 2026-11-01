@@ -80,14 +80,14 @@
       <dd>Where a friendship stands, from the local user's point of view:
         <code>pending_outgoing</code> (you asked), <code>pending_incoming</code>
         (they asked), <code>accepted</code>, <code>rejected</code>, or
-        <code>disabled</code> (after a <a href="#default">default</a>). Only an
+        <code>disabled</code> (deactivated, after a <a href="#default">default</a>). Only an
         accepted friendship is a <a href="#friend">friend</a> in the everyday
         sense.</dd>
 
-      <dt id="default" data-files="js/commands/friendship-default.js js/peer/handlers.js js/ledger.ts"><a class="term-self" href="#default">Default, Disabled friendship, Reactivation</a></dt>
+      <dt id="default" data-files="js/commands/friendship-default.js js/peer/handlers.js js/ledger.ts"><a class="term-self" href="#default">Default, Deactivated friendship, Reactivation</a></dt>
       <dd>Openly giving up on a friendship's tally (or absolving it, or just
         deactivating a zero tally), with an optional note. Both sides keep the
-        friendship <em>disabled</em>: records visible as history, counted in no
+        friendship <em>deactivated</em>: records visible as history, counted in no
         total, no new activity. Either side can suggest
         <em>reactivation</em>, which sends its signed copy of the history
         along. Deleting the history is final for the side that does it. See

@@ -3,7 +3,7 @@ This module binds the friend detail subpage. It renders tally/trust summary card
 
 It also exposes navigation triggers to related subpages by wiring the trust tile click target from the current friend context.
 
-A disabled friendship (after a default) shows its records read-only as history, with the default notice on top, a way to suggest or answer reactivation, and a button to delete the history (commands/friendship-default.js).
+A deactivated friendship (after a default) shows its records read-only as history, with the default notice on top, a way to suggest or answer reactivation, and a button to delete the history (commands/friendship-default.js).
 @category ui
 */
 
@@ -24,7 +24,7 @@ import {
 import { dismissNameChangeNotification } from "../../js/commands/user.js";
 import {
   defaultOnFriendship,
-  deleteDisabledFriendHistory,
+  deleteDeactivatedFriendHistory,
   respondToReactivation,
   suggestReactivation,
 } from "../../js/commands/friendship-default.js";
@@ -33,14 +33,15 @@ import {
   FRIENDSHIP_STATUS_PENDING_INCOMING,
   FRIENDSHIP_STATUS_PENDING_OUTGOING,
   FRIENDSHIP_STATUS_REJECTED,
+  PENDING_CREDIT_LIMIT_LOWERED,
   isAcceptedFriendshipStatus,
-  isDisabledFriendshipStatus,
+  isDeactivatedFriendshipStatus,
 } from "../../js/utils/friendships.js";
 import { formatCurrency, formatDate, formatSigned } from "../../js/ui/format.js";
 import { createFriendIcon, setFriendIconStatus } from "../components/friend-icon.js";
 import { initInfiniteList } from "../../js/ui/infinite-list.js";
 import { getConnectedPeerIds, getServerPresentPeerIds } from "../../js/peer/status.js";
-import { showConfirmModal } from "../components/confirm-modal.js";
+import { CONFIRM_VARIANT_SUCCESS, showConfirmModal } from "../components/confirm-modal.js";
 import { isSameRelayUrl } from "../../js/utils/relay-url.js";
 
 const formatDefaultDate = (iso) => {
@@ -52,7 +53,7 @@ const formatDefaultDate = (iso) => {
 // The default notice, from this user's side. tally_eur is the author's tally
 // at the time: negative when the author owed.
 const describeDefault = (info, friendName) => {
-  if (!info) return "This friend connection is disabled.";
+  if (!info) return "This friend connection is deactivated.";
   const amount = formatCurrency(info.tally_eur);
   const date = formatDefaultDate(info.created_at);
   const text = info.is_mine
@@ -69,10 +70,10 @@ const describeDefault = (info, friendName) => {
   return date ? `${text} on ${date}.` : `${text}.`;
 };
 
-const renderDisabledFriendship = (root, { friend, friendId, friendName, friendFirstName, isDisabled }) => {
+const renderDeactivatedFriendship = (root, { friend, friendId, friendName, friendFirstName, isDeactivated }) => {
   const infoEl = root.querySelector('[data-section="default-info"]');
   const requestEl = root.querySelector('[data-section="reactivation-request"]');
-  if (!isDisabled || !infoEl || !friendId) return;
+  if (!isDeactivated || !infoEl || !friendId) return;
 
   const textEl = infoEl.querySelector('[data-bind="default-info-text"]');
   const noteEl = infoEl.querySelector('[data-bind="default-info-note"]');
@@ -95,7 +96,7 @@ const renderDisabledFriendship = (root, { friend, friendId, friendName, friendFi
         title: "Reactivate friendship",
         body: `Your friendship with ${friendName} becomes active again, and your historic records count in your total tally again.`,
         confirmLabel: "Reactivate",
-        variant: "success",
+        variant: CONFIRM_VARIANT_SUCCESS,
       });
       if (!confirmed) return;
       requestEl.hidden = true;
@@ -115,7 +116,7 @@ const renderDisabledFriendship = (root, { friend, friendId, friendName, friendFi
         title: "Suggest reactivation",
         body: `If ${friendName} accepts, your friendship and your historic records are reactivated and count in your total tally again.\n\nYour copy of the records goes along with the suggestion, in case ${friendFirstName} no longer has theirs.`,
         confirmLabel: "Suggest",
-        variant: "success",
+        variant: CONFIRM_VARIANT_SUCCESS,
       });
       if (!confirmed) return;
       await suggestReactivation(friendId);
@@ -161,14 +162,14 @@ export const bindFriendDetail = (root, data, friendId) => {
   const tally = friend?.debt_eur || 0;
   const isOnline = getConnectedPeerIds().includes(friendId);
   const isRelay = !isOnline && getServerPresentPeerIds().includes(friendId);
-  const isDisabled = isDisabledFriendshipStatus(friendshipStatus);
-  // Accepted and disabled friendships both have records to show.
-  const hasRecords = isAcceptedFriendshipStatus(friendshipStatus) || isDisabled;
+  const isDeactivated = isDeactivatedFriendshipStatus(friendshipStatus);
+  // Accepted and deactivated friendships both have records to show.
+  const hasRecords = isAcceptedFriendshipStatus(friendshipStatus) || isDeactivated;
   const tallyText = formatCurrency(tally);
-  const friendDangerActionLabel = isDisabled
+  const friendDangerActionLabel = isDeactivated
     ? "Delete history"
     : tally > 0 ? "Absolve tally" : tally < 0 ? "Default on tally" : "Deactivate friend connection";
-  const friendDangerBody = isDisabled
+  const friendDangerBody = isDeactivated
     ? `This deletes your records with ${friendName} from this device and your other devices. **After this you can't restore the friendship yourself.**\n\nIf ${friendName} keeps their copy, they can still suggest reactivating it, and their copy of the records comes back with the suggestion.`
     : tally > 0
     ? `${friendName} currently **owes you ${tallyText}**. This action will absolve ${friendName} and also deactivate your friend connection, stopping any activity between you two.\n\nIf you want to reset the tally without deactivating the connection, you can do this by sending them ${tallyText}.\n\nIt is still possible to reactivate the friend connection and this tally later, if both of you agree to do so.`
@@ -187,19 +188,19 @@ export const bindFriendDetail = (root, data, friendId) => {
 
   if (friendKeyLabelEl) friendKeyLabelEl.textContent = `${friendFirstName}'s key`;
   if (friendDangerLabelEl) friendDangerLabelEl.textContent = friendDangerActionLabel;
-  // Only accepted and disabled friendships have a danger action; pending
+  // Only accepted and deactivated friendships have a danger action; pending
   // requests have their own buttons.
   if (friendDangerButton) friendDangerButton.hidden = !hasRecords;
   if (friendDangerButton && hasRecords && friendId) {
     friendDangerButton.addEventListener("click", async () => {
-      if (isDisabled) {
+      if (isDeactivated) {
         const confirmed = await showConfirmModal({
           title: friendDangerActionLabel,
           body: friendDangerBody,
           confirmLabel: friendDangerActionLabel,
         });
         if (!confirmed) return;
-        await deleteDisabledFriendHistory(friendId);
+        await deleteDeactivatedFriendHistory(friendId);
         window.location.hash = "friends";
         return;
       }
@@ -217,7 +218,7 @@ export const bindFriendDetail = (root, data, friendId) => {
     });
   }
 
-  renderDisabledFriendship(root, { friend, friendId, friendName, friendFirstName, isDisabled });
+  renderDeactivatedFriendship(root, { friend, friendId, friendName, friendFirstName, isDeactivated });
 
   if (syncInfoEl && syncTimeEl) {
     if (friend?.last_synced_at) {
@@ -247,7 +248,7 @@ export const bindFriendDetail = (root, data, friendId) => {
     }
   }
   if (labelEl) {
-    labelEl.textContent = isDisabled
+    labelEl.textContent = isDeactivated
       ? `Historic records with ${friendFirstName}`
       : isAcceptedFriendshipStatus(friendshipStatus)
       ? `My records with ${friendFirstName}`
@@ -272,9 +273,9 @@ export const bindFriendDetail = (root, data, friendId) => {
       headerRight.innerHTML = `
         <span class="friend-status-chip surface-box">Rejected</span>
       `;
-    } else if (isDisabled) {
+    } else if (isDeactivated) {
       headerRight.innerHTML = `
-        <span class="friend-status-chip surface-box">Disabled</span>
+        <span class="friend-status-chip surface-box">Deactivated</span>
       `;
     }
   }
@@ -314,7 +315,7 @@ export const bindFriendDetail = (root, data, friendId) => {
     trustButton.setAttribute("aria-disabled", "true");
   }
   if (tallyLabelEl) {
-    if (isDisabled) {
+    if (isDeactivated) {
       tallyLabelEl.textContent = tally >= 0 ? "owed you" : "you owed";
     } else if (isAcceptedFriendshipStatus(friendshipStatus)) {
       tallyLabelEl.textContent = tally >= 0 ? "owes you" : "you owe";
@@ -366,7 +367,7 @@ export const bindFriendDetail = (root, data, friendId) => {
 
   if (suggestionEl && hasPendingSuggestion) {
     suggestionEl.hidden = false;
-    if (isIncoming === "lowered") {
+    if (isIncoming === PENDING_CREDIT_LIMIT_LOWERED) {
       const amountText = `${friendFirstName} lowered trust limit to ${formatCurrency(pendingLimit)}`;
       if (suggestionLabelEl) suggestionLabelEl.textContent = amountText;
       if (suggestionOkActionsEl) suggestionOkActionsEl.hidden = false;

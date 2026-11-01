@@ -2,7 +2,7 @@
 After a default, a friend request only works once neither side keeps the old
 history:
 
-  1. Alice owes Bob €10 and defaults. Both friendships are disabled.
+  1. Alice owes Bob €10 and defaults. Both friendships are deactivated.
   2. Bob deletes his history and sends Alice a friend request. Alice still
      has the history, so she ignores it: the old tally must come back only
      through a reactivation suggestion.
@@ -37,8 +37,10 @@ const waitForFriend = (client, friendId, predicateSource, timeout) =>
     async ([id, source]) => {
       const { loadData } = await import("/dist/js/app-state.js");
       const friend = (await loadData())?.friends.find((f) => f.person_id === id) || null;
+      // Predicates compare against the app's own status constants (S).
+      const S = await import("/dist/js/utils/friendships.js");
       // eslint-disable-next-line no-new-func
-      return new Function("friend", `return (${source});`)(friend);
+      return new Function("friend", "S", `return (${source});`)(friend, S);
     },
     [friendId, predicateSource],
     { timeout, polling: 250 }
@@ -83,25 +85,28 @@ module.exports = {
 
     // 1. Default.
     await command(alice, "friendship-default.js", "defaultOnFriendship", [bobId, ""]);
-    await waitForFriend(bob, aliceId, 'friend && friend.friendship_status === "disabled"', timeout);
+    await waitForFriend(bob, aliceId, 'friend && friend.friendship_status === S.FRIENDSHIP_STATUS_DEACTIVATED', timeout);
 
     // 2. Bob deletes and asks again; Alice still has the history and ignores it.
-    await command(bob, "friendship-default.js", "deleteDisabledFriendHistory", [aliceId]);
+    await command(bob, "friendship-default.js", "deleteDeactivatedFriendHistory", [aliceId]);
     await waitForFriend(bob, aliceId, "friend === null", timeout);
     await command(bob, "friendship.js", "createFriend", [{ friendId: aliceId, trustLimit: 50, name: "Alice" }]);
-    await waitForFriend(bob, aliceId, 'friend && friend.friendship_status === "pending_outgoing"', timeout);
+    await waitForFriend(bob, aliceId, 'friend && friend.friendship_status === S.FRIENDSHIP_STATUS_PENDING_OUTGOING', timeout);
     await harness.delay(4000);
     const aliceMeanwhile = await readFriend(alice, bobId);
-    assert.equal(aliceMeanwhile.friendship_status, "disabled", "Alice keeps the disabled friendship");
+    assert.ok(
+      await alice.page.evaluate(async (status) => (await import("/dist/js/utils/friendships.js")).isDeactivatedFriendshipStatus(status), aliceMeanwhile.friendship_status),
+      "Alice keeps the deactivated friendship"
+    );
     assert.equal(aliceMeanwhile.debt_eur, -10, "Alice keeps the old tally");
 
     // 3. Alice deletes too; now a friend request works normally.
-    await command(alice, "friendship-default.js", "deleteDisabledFriendHistory", [bobId]);
+    await command(alice, "friendship-default.js", "deleteDeactivatedFriendHistory", [bobId]);
     await waitForFriend(alice, bobId, "friend === null", timeout);
     await command(alice, "friendship.js", "createFriend", [{ friendId: bobId, trustLimit: 50, name: "Bob" }]);
 
-    await waitForFriend(alice, bobId, 'friend && friend.friendship_status === "accepted"', timeout);
-    await waitForFriend(bob, aliceId, 'friend && friend.friendship_status === "accepted"', timeout);
+    await waitForFriend(alice, bobId, 'friend && friend.friendship_status === S.FRIENDSHIP_STATUS_ACCEPTED', timeout);
+    await waitForFriend(bob, aliceId, 'friend && friend.friendship_status === S.FRIENDSHIP_STATUS_ACCEPTED', timeout);
 
     // 4. A fresh start.
     const aliceFresh = await readFriend(alice, bobId);

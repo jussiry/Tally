@@ -24,7 +24,7 @@ import { appendLedgerEntryFromMessage } from "./ledger.js";
 import { asTrimmedString, hasUser } from "./state-utils.js";
 import {
   FRIENDSHIP_STATUS_ACCEPTED,
-  FRIENDSHIP_STATUS_DISABLED,
+  FRIENDSHIP_STATUS_DEACTIVATED,
   FRIENDSHIP_STATUS_PENDING_INCOMING,
   FRIENDSHIP_STATUS_PENDING_OUTGOING,
 } from "./utils/friendships.js";
@@ -190,16 +190,16 @@ export const removeFriendRelationshipData = (state, friendId) => {
   });
 };
 
-// Disable a friendship after a default. The records stay for the history
+// Deactivate a friendship after a default. The records stay for the history
 // view; open suggestions and notices about the friend no longer apply.
 export const disableFriend = (friend) => {
-  friend.friendship_status = FRIENDSHIP_STATUS_DISABLED;
+  friend.friendship_status = FRIENDSHIP_STATUS_DEACTIVATED;
   friend.pending_credit_limit_eur = null;
   friend.pending_credit_limit_is_incoming = null;
   friend.pending_name_change = null;
 };
 
-// Forget a disabled friend: their record, contact, queued messages, and the
+// Forget a deactivated friend: their record, contact, queued messages, and the
 // ledger entries between the two dated up to `upTo` (all when omitted). The
 // record survives only when newer entries remain, e.g. a reactivation
 // suggestion that arrived after the deletion on another device.
