@@ -34,6 +34,7 @@ import { bindRequest } from "../ui-modules/subpage/request.js";
 import { bindTrust } from "../ui-modules/subpage/trust.js";
 import { bindTransfer } from "../ui-modules/subpage/transfer.js";
 import { bindNotificationSettings } from "../ui-modules/subpage/notifications.js";
+import { setupSubpageTitleExpand } from "../ui-modules/subpage/subpage-title.js";
 import { applyDevSeedIfRequested } from "./dev/seed.js";
 import { createRealtimeClient } from "./peer/client.js";
 import { startRecurringScheduler } from "./recurring-scheduler.js";
@@ -490,6 +491,8 @@ navButtons.forEach((button) => {
     window.location.hash = page;
   });
 });
+
+setupSubpageTitleExpand();
 
 initSwipeNavigation(document.body, {
   navOrder,
