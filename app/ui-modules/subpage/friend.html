@@ -1,4 +1,21 @@
 <div class="friend-content">
+  <div class="friend-stats" aria-label="Tally and trust">
+    <div class="friend-stat surface-box" data-section="friend-tally">
+      <div class="friend-stat-label" data-bind="tally-label">owes you</div>
+      <div class="friend-stat-value">
+        <span class="friend-stat-amount" data-bind="tally-amount">+€0.00</span>
+      </div>
+    </div>
+    <button class="friend-stat friend-stat--trust surface-box" type="button" data-section="trust-limit">
+      <div class="friend-stat-label" data-bind="trust-title">Trust limit</div>
+      <div class="friend-stat-value friend-stat-value--small">
+        <span class="friend-stat-amount" data-bind="trust-amount">€0.00</span>
+        <svg class="friend-stat-edit-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <use href="#icon-edit" />
+        </svg>
+      </div>
+    </button>
+  </div>
   <div class="friend-default-info surface-box" data-section="default-info" hidden>
     <div class="friend-default-info-text" data-bind="default-info-text"></div>
     <blockquote class="friend-default-info-note" data-bind="default-info-note" hidden></blockquote>
@@ -65,23 +82,6 @@
   </div>
   <div data-list="payment-requests"></div>
   <div data-list="recurring-payments"></div>
-  <div class="friend-stats" aria-label="Tally and trust">
-    <div class="friend-stat surface-box" data-section="friend-tally">
-      <div class="friend-stat-label" data-bind="tally-label">owes you</div>
-      <div class="friend-stat-value">
-        <span class="friend-stat-amount" data-bind="tally-amount">+€0.00</span>
-      </div>
-    </div>
-    <button class="friend-stat friend-stat--trust surface-box" type="button" data-section="trust-limit">
-      <div class="friend-stat-label" data-bind="trust-title">Trust limit</div>
-      <div class="friend-stat-value friend-stat-value--small">
-        <span class="friend-stat-amount" data-bind="trust-amount">€0.00</span>
-        <svg class="friend-stat-edit-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <use href="#icon-edit" />
-        </svg>
-      </div>
-    </button>
-  </div>
   <div class="content-card trust-hero friend-card" data-section="friend-body">
     <div class="hero-label" data-bind="friend-label">Transactions</div>
     <ul class="tx-list" data-list="friend-transactions"></ul>
