@@ -2,7 +2,7 @@
   width: 22px;
   height: 22px;
   margin-left: 2px;
-  margin-bottom: 5px;
+  vertical-align: -2px;
 }
 
 .friend-sync-status {

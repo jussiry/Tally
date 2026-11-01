@@ -37,25 +37,52 @@
   height: 18px;
 }
 
+/* Holds the title's place in the row, so an expanded title can float over
+   the header buttons without shifting them. */
+.subpage-title-wrap {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 40px;
+}
+
 .subpage-title {
   --surface-radius: 14px;
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  box-sizing: border-box;
+  max-width: 100%;
   margin: 0;
   font-size: 20px;
-  display: inline-flex;
-  align-items: center;
+  line-height: 1.2;
   padding: 8px 12px;
   border: 1px solid rgba(17, 17, 17, 0.06);
-  margin-right: auto;
-  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.subpage-title.is-truncated {
+  cursor: pointer;
+}
+
+/* A long name shown in full (hover, or tap on touch — subpage-title.js),
+   drawn above the header buttons and wrapping if wider than the header. */
+.subpage-title.is-expanded {
+  z-index: 5;
+  width: max-content;
+  max-width: var(--title-max-width, 100%);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  box-shadow: 0 12px 26px rgba(15, 12, 8, 0.18);
+}
+
 .subpage-header-right {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
   gap: 8px;
-  flex-wrap: wrap;
   justify-content: flex-end;
 }
