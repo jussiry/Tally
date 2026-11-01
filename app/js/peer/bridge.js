@@ -54,11 +54,8 @@ import {
   mergeSyncedLedgerEntries,
 } from "../ledger.js";
 import {
-  PEER_MESSAGE_TYPE_HISTORY_DELETED,
-  PEER_MESSAGE_TYPE_NAME_CHANGED,
-  PEER_MESSAGE_TYPE_RECEIVED,
-  PEER_RECEIPT_RESULT_IGNORED,
-  PEER_RECEIPT_RESULT_PROCESSED,
+  MessageType,
+  ReceiptResult,
 } from "./messages.js";
 import { showNotification } from "../ui/notifications.js";
 import { collectOsNotifyTypesByAuthor } from "../notify/notification-policy.js";
@@ -147,7 +144,7 @@ export const addLedgerEntries = async (entries) => {
 // keeps their history.
 const applyHistoryDeletions = (state, entries) => {
   entries.forEach((entry) => {
-    if (entry.type !== PEER_MESSAGE_TYPE_HISTORY_DELETED) return;
+    if (entry.type !== MessageType.HISTORY_DELETED) return;
     if (entry.from_user_id !== state.user.id) return;
     const friendId = entry.payload?.friend_id;
     const friend = getFriend(state, friendId);
@@ -294,7 +291,7 @@ export const applyOwnNameFromLedger = async () => {
   const myId = state.user.id;
   const nameEntries = (Array.isArray(state.ledger) ? state.ledger : []).filter(
     (e) =>
-      e.type === PEER_MESSAGE_TYPE_NAME_CHANGED &&
+      e.type === MessageType.NAME_CHANGED &&
       e.from_user_id === myId &&
       typeof e.payload?.name === "string" &&
       e.payload.name.trim()
@@ -340,7 +337,7 @@ export const applyInboundPeerMessage = async (incomingMessage) => {
   }
 
   // Receipts are transport-layer acks, not ledger events — handled elsewhere.
-  if (message.type === PEER_MESSAGE_TYPE_RECEIVED) {
+  if (message.type === MessageType.RECEIVED) {
     return createInboundProcessingResult(buildView(state));
   }
 
@@ -349,14 +346,14 @@ export const applyInboundPeerMessage = async (incomingMessage) => {
   if (hasProcessedPeerMessage(state, message.id)) {
     return createInboundProcessingResult(
       buildView(state),
-      PEER_RECEIPT_RESULT_PROCESSED
+      ReceiptResult.PROCESSED
     );
   }
 
   // History the user deleted stays deleted, even when another device or the
   // friend replays it (see isDeletedHistoryEntry).
   if (isDeletedHistoryEntry(state, message)) {
-    return createInboundProcessingResult(buildView(state), PEER_RECEIPT_RESULT_IGNORED);
+    return createInboundProcessingResult(buildView(state), ReceiptResult.IGNORED);
   }
 
   // Append the ledger entry first. From this point on, state changes are a
@@ -376,7 +373,7 @@ export const applyInboundPeerMessage = async (incomingMessage) => {
     state.ledger.shift();
     return createInboundProcessingResult(
       buildView(state),
-      PEER_RECEIPT_RESULT_IGNORED
+      ReceiptResult.IGNORED
     );
   }
 
@@ -391,6 +388,6 @@ export const applyInboundPeerMessage = async (incomingMessage) => {
 
   return createInboundProcessingResult(
     await persistAndBuildView(state),
-    PEER_RECEIPT_RESULT_PROCESSED
+    ReceiptResult.PROCESSED
   );
 };

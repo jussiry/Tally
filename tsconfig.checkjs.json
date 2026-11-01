@@ -1,0 +1,14 @@
+{
+  // Second pass of `npm run typecheck`: checks the JavaScript too, mainly so a
+  // misspelled constant (MessageType.FRIEND_REQEST) or option fails the check
+  // instead of becoming undefined at runtime. Strictness is relaxed because
+  // most JS is untyped; the TypeScript files get the strict pass from
+  // tsconfig.json. Vendored code and the service worker opt out with
+  // // @ts-nocheck.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "checkJs": true,
+    "strict": false,
+    "noImplicitAny": false
+  }
+}

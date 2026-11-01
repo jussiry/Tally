@@ -16,22 +16,7 @@ import {
 import { isAnyRelayConnected } from "../../js/signaling/relay-status-registry.js";
 import { initInfiniteList } from "../../js/ui/infinite-list.js";
 import { getOsNotifyTypes } from "../../js/notify/notification-policy.js";
-import {
-  PEER_MESSAGE_TYPE_FRIEND_ACCEPT,
-  PEER_MESSAGE_TYPE_FRIEND_REJECT,
-  PEER_MESSAGE_TYPE_FRIEND_REQUEST,
-  PEER_MESSAGE_TYPE_FRIENDSHIP_DEFAULT,
-  PEER_MESSAGE_TYPE_HISTORY_DELETED,
-  PEER_MESSAGE_TYPE_NAME_CHANGED,
-  PEER_MESSAGE_TYPE_NOTIFICATION_PREFS,
-  PEER_MESSAGE_TYPE_PAYMENT_REQUEST,
-  PEER_MESSAGE_TYPE_PAYMENT_REQUEST_CANCEL,
-  PEER_MESSAGE_TYPE_PAYMENT_REQUEST_RESPONSE,
-  PEER_MESSAGE_TYPE_REACTIVATION_REQUEST,
-  PEER_MESSAGE_TYPE_REACTIVATION_RESPONSE,
-  PEER_MESSAGE_TYPE_TRANSACTION_CREATED,
-  PEER_MESSAGE_TYPE_TRUST_LIMIT_SUGGESTION,
-} from "../../js/peer/messages.js";
+import { MessageType } from "../../js/peer/messages.js";
 
 const formatEur = (amount) => {
   const value = Number(amount);
@@ -48,37 +33,37 @@ const formatLedgerEntry = (entry, myId, namesById, context = {}) => {
   const payload = entry.payload || {};
 
   switch (entry.type) {
-    case PEER_MESSAGE_TYPE_FRIEND_REQUEST:
+    case MessageType.FRIEND_REQUEST:
       return isOutgoing
         ? `Friend request sent to ${peerName}`
         : `Friend request received from ${peerName}`;
-    case PEER_MESSAGE_TYPE_FRIEND_ACCEPT:
+    case MessageType.FRIEND_ACCEPT:
       return isOutgoing
         ? `You accepted ${peerName} as a friend`
         : `${peerName} accepted your friend request`;
-    case PEER_MESSAGE_TYPE_FRIEND_REJECT:
+    case MessageType.FRIEND_REJECT:
       return isOutgoing
         ? `You rejected friend request from ${peerName}`
         : `${peerName} rejected your friend request`;
-    case PEER_MESSAGE_TYPE_TRUST_LIMIT_SUGGESTION: {
+    case MessageType.TRUST_LIMIT_SUGGESTION: {
       const limit = formatEur(payload.credit_limit_eur);
       return isOutgoing
         ? `You suggested trust limit of ${limit} with ${peerName}`
         : `${peerName} suggested trust limit of ${limit}`;
     }
-    case PEER_MESSAGE_TYPE_TRANSACTION_CREATED: {
+    case MessageType.TRANSACTION_CREATED: {
       const amount = formatEur(payload.amount_eur);
       return isOutgoing
         ? `You sent ${amount} to ${peerName}`
         : `${peerName} sent ${amount} to you`;
     }
-    case PEER_MESSAGE_TYPE_PAYMENT_REQUEST: {
+    case MessageType.PAYMENT_REQUEST: {
       const amount = formatEur(payload.amount_eur);
       return isOutgoing
         ? `You requested ${amount} from ${peerName}`
         : `${peerName} requested ${amount} from you`;
     }
-    case PEER_MESSAGE_TYPE_PAYMENT_REQUEST_RESPONSE: {
+    case MessageType.PAYMENT_REQUEST_RESPONSE: {
       const accepted = payload.accepted === true;
       if (isOutgoing) {
         return accepted
@@ -89,11 +74,11 @@ const formatLedgerEntry = (entry, myId, namesById, context = {}) => {
         ? `${peerName} accepted your payment request`
         : `${peerName} declined your payment request`;
     }
-    case PEER_MESSAGE_TYPE_PAYMENT_REQUEST_CANCEL:
+    case MessageType.PAYMENT_REQUEST_CANCEL:
       return isOutgoing
         ? `You cancelled your payment request to ${peerName}`
         : `${peerName} cancelled their payment request`;
-    case PEER_MESSAGE_TYPE_FRIENDSHIP_DEFAULT: {
+    case MessageType.FRIENDSHIP_DEFAULT: {
       // tally_eur is from the author's side: negative means the author owed.
       const tally = Number(payload.tally_eur) || 0;
       const amount = formatEur(Math.abs(tally));
@@ -111,11 +96,11 @@ const formatLedgerEntry = (entry, myId, namesById, context = {}) => {
         : `${peerName} deactivated your friend connection`;
       return action + note;
     }
-    case PEER_MESSAGE_TYPE_REACTIVATION_REQUEST:
+    case MessageType.REACTIVATION_REQUEST:
       return isOutgoing
         ? `You suggested reactivating your friendship with ${peerName}`
         : `${peerName} suggested reactivating your friendship`;
-    case PEER_MESSAGE_TYPE_REACTIVATION_RESPONSE: {
+    case MessageType.REACTIVATION_RESPONSE: {
       const accepted = payload.accepted === true;
       if (isOutgoing) {
         return accepted
@@ -126,9 +111,9 @@ const formatLedgerEntry = (entry, myId, namesById, context = {}) => {
         ? `${peerName} reactivated your friendship`
         : `${peerName} declined reactivating your friendship`;
     }
-    case PEER_MESSAGE_TYPE_HISTORY_DELETED:
+    case MessageType.HISTORY_DELETED:
       return "You deleted your history with a deactivated friend";
-    case PEER_MESSAGE_TYPE_NAME_CHANGED: {
+    case MessageType.NAME_CHANGED: {
       const newName = payload.name || "";
       if (isOutgoing) {
         return `You changed your name to ${newName}`;
@@ -174,7 +159,7 @@ export const bindLogs = (root, data) => {
   const ledger = Array.isArray(data.ledger) ? data.ledger : [];
   // Notification-preference entries are bookkeeping between clients, not
   // something that happened; they'd only clutter the log.
-  const entries = ledger.filter((entry) => entry.type !== PEER_MESSAGE_TYPE_NOTIFICATION_PREFS);
+  const entries = ledger.filter((entry) => entry.type !== MessageType.NOTIFICATION_PREFS);
   // Inbound events of these types also reach the user as OS notifications
   // (Settings → Notifications); their rows are highlighted.
   const osNotifyTypes = new Set(getOsNotifyTypes(ledger, myId));
@@ -190,7 +175,7 @@ export const bindLogs = (root, data) => {
     return aTs < bTs ? -1 : aTs > bTs ? 1 : 0;
   });
   chronological.forEach((entry) => {
-    if (entry.type === PEER_MESSAGE_TYPE_NAME_CHANGED && typeof entry.payload?.name === "string") {
+    if (entry.type === MessageType.NAME_CHANGED && typeof entry.payload?.name === "string") {
       const userId = entry.from_user_id;
       if (nameAtTime[userId]) {
         previousNameByEntryId[entry.id] = nameAtTime[userId];

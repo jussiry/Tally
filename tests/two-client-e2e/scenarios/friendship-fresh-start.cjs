@@ -85,13 +85,13 @@ module.exports = {
 
     // 1. Default.
     await command(alice, "friendship-default.js", "defaultOnFriendship", [bobId, ""]);
-    await waitForFriend(bob, aliceId, 'friend && friend.friendship_status === S.FRIENDSHIP_STATUS_DEACTIVATED', timeout);
+    await waitForFriend(bob, aliceId, 'friend && friend.friendship_status === S.FriendshipStatus.DEACTIVATED', timeout);
 
     // 2. Bob deletes and asks again; Alice still has the history and ignores it.
     await command(bob, "friendship-default.js", "deleteDeactivatedFriendHistory", [aliceId]);
     await waitForFriend(bob, aliceId, "friend === null", timeout);
     await command(bob, "friendship.js", "createFriend", [{ friendId: aliceId, trustLimit: 50, name: "Alice" }]);
-    await waitForFriend(bob, aliceId, 'friend && friend.friendship_status === S.FRIENDSHIP_STATUS_PENDING_OUTGOING', timeout);
+    await waitForFriend(bob, aliceId, 'friend && friend.friendship_status === S.FriendshipStatus.PENDING_OUTGOING', timeout);
     await harness.delay(4000);
     const aliceMeanwhile = await readFriend(alice, bobId);
     assert.ok(
@@ -105,8 +105,8 @@ module.exports = {
     await waitForFriend(alice, bobId, "friend === null", timeout);
     await command(alice, "friendship.js", "createFriend", [{ friendId: bobId, trustLimit: 50, name: "Bob" }]);
 
-    await waitForFriend(alice, bobId, 'friend && friend.friendship_status === S.FRIENDSHIP_STATUS_ACCEPTED', timeout);
-    await waitForFriend(bob, aliceId, 'friend && friend.friendship_status === S.FRIENDSHIP_STATUS_ACCEPTED', timeout);
+    await waitForFriend(alice, bobId, 'friend && friend.friendship_status === S.FriendshipStatus.ACCEPTED', timeout);
+    await waitForFriend(bob, aliceId, 'friend && friend.friendship_status === S.FriendshipStatus.ACCEPTED', timeout);
 
     // 4. A fresh start.
     const aliceFresh = await readFriend(alice, bobId);

@@ -72,7 +72,23 @@
       TypeScript, because that is where a wrong shape is expensive and where the
       types document the contract. UI modules under <code>app/js/ui/</code> and
       <code>app/ui-modules/</code> stay JavaScript. <code>npm run typecheck</code>
-      runs <code>tsc --noEmit</code>; esbuild itself does not type-check.
+      runs <code>tsc --noEmit</code>, then a second, looser pass over the
+      JavaScript too (<code>tsconfig.checkjs.json</code>); esbuild itself does not
+      type-check. Vendored code and the service worker opt out with
+      <code>// @ts-nocheck</code>, and app globals on <code>window</code> are
+      declared in <code>app/js/globals.d.ts</code>.
+    </p>
+
+    <h3>Named values</h3>
+    <p>
+      A set of string values the code compares against — message types,
+      friendship statuses, push states, routes — lives in one frozen object,
+      written at each use with its name: <code>MessageType.FRIEND_REQUEST</code>,
+      <code>FriendshipStatus.DEACTIVATED</code>. Never compare against the raw
+      string, and don't destructure the object into bare names: the prefix says
+      which list a value belongs to. A misspelled name would be
+      <code>undefined</code> at runtime, so the JavaScript pass of
+      <code>npm run typecheck</code> is what catches it.
     </p>
 
     <h2 data-files="sw.js sw-crypto-entry.js js/ui/app-update.js">Offline shell and updates</h2>

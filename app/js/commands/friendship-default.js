@@ -23,12 +23,7 @@ self-synced device ends up the same.
 @category command
 */
 
-import {
-  PEER_MESSAGE_TYPE_FRIENDSHIP_DEFAULT,
-  PEER_MESSAGE_TYPE_HISTORY_DELETED,
-  PEER_MESSAGE_TYPE_REACTIVATION_REQUEST,
-  PEER_MESSAGE_TYPE_REACTIVATION_RESPONSE,
-} from "../peer/messages.js";
+import { MessageType } from "../peer/messages.js";
 import {
   isAcceptedFriendshipStatus,
   isDeactivatedFriendshipStatus,
@@ -66,7 +61,7 @@ export const defaultOnFriendship = async (friendId, note = "") => {
 
   const defaultMsg = await queuePeerMessage(state, {
     toUserId,
-    type: PEER_MESSAGE_TYPE_FRIENDSHIP_DEFAULT,
+    type: MessageType.FRIENDSHIP_DEFAULT,
     payload: {
       note: asTrimmedString(note),
       tally_eur: friend.debt_eur || 0,
@@ -80,7 +75,7 @@ export const defaultOnFriendship = async (friendId, note = "") => {
 const respond = async (state, toUserId, requestId, accepted) => {
   const responseMsg = await queuePeerMessage(state, {
     toUserId,
-    type: PEER_MESSAGE_TYPE_REACTIVATION_RESPONSE,
+    type: MessageType.REACTIVATION_RESPONSE,
     payload: { request_id: requestId, accepted },
   });
   appendLedgerEntryFromMessage(state, responseMsg);
@@ -104,11 +99,11 @@ export const suggestReactivation = async (friendId) => {
 
   // Earlier requests stay out, or each history would nest the previous ones.
   const history = getLedgerEntriesForPeer(state.ledger, state.user.id, toUserId).filter(
-    (entry) => entry.type !== PEER_MESSAGE_TYPE_REACTIVATION_REQUEST
+    (entry) => entry.type !== MessageType.REACTIVATION_REQUEST
   );
   const requestMsg = await queuePeerMessage(state, {
     toUserId,
-    type: PEER_MESSAGE_TYPE_REACTIVATION_REQUEST,
+    type: MessageType.REACTIVATION_REQUEST,
     payload: {
       request_id: createId("react"),
       requester_name: state.user.name,
@@ -136,7 +131,7 @@ export const respondToReactivation = async (friendId, requestId, accepted) => {
 const appendHistoryDeletedEntry = async (state, friendId) => {
   const unsigned = createPeerMessageModel({
     id: createId("peer"),
-    type: PEER_MESSAGE_TYPE_HISTORY_DELETED,
+    type: MessageType.HISTORY_DELETED,
     from_user_id: state.user.id,
     to_user_id: state.user.id,
     created_at: new Date().toISOString(),

@@ -16,18 +16,12 @@ import { showConfirmModal } from "../components/confirm-modal.js";
 import { isUpdateAvailable, applyUpdate } from "../../js/ui/app-update.js";
 import { isSameRelayUrl, normalizeRelayUrl } from "../../js/utils/relay-url.js";
 import {
-  PUSH_STATE_DENIED,
-  PUSH_STATE_ENABLED,
-  PUSH_STATE_ERROR,
-  PUSH_STATE_UNSUPPORTED,
+  PushState,
   getPushState,
   enablePush,
   disablePush,
 } from "../../js/push/push-subscribe.js";
-import {
-  RELAY_STATUS_CONNECTED,
-  RELAY_STATUS_PENDING,
-} from "../../js/signaling/relay-status-registry.js";
+import { RelayStatus } from "../../js/signaling/relay-status-registry.js";
 
 // Render the relay list inside the settings surface-box. Each row is cloned
 // from the <template data-template="relay-item"> in the page HTML. The main
@@ -68,11 +62,11 @@ const renderRelayList = (root, relays, { onRemove }) => {
       itemEl.dataset.relayUrl = relay.url;
     }
     if (statusEl) {
-      statusEl.classList.add(`relay-status-${relay.status || RELAY_STATUS_PENDING}`);
+      statusEl.classList.add(`relay-status-${relay.status || RelayStatus.PENDING}`);
       statusEl.title =
-        relay.status === RELAY_STATUS_CONNECTED
+        relay.status === RelayStatus.CONNECTED
           ? "Connected"
-          : relay.status === RELAY_STATUS_PENDING
+          : relay.status === RelayStatus.PENDING
           ? "Not connected yet"
           : "Disconnected";
     }
@@ -344,14 +338,14 @@ const bindNotifySection = async (root) => {
   };
 
   const state = await getPushState();
-  if (state === PUSH_STATE_UNSUPPORTED) {
+  if (state === PushState.UNSUPPORTED) {
     setHint("This browser doesn't support notifications.");
     return;
   }
 
   toggleEl.hidden = false;
-  setLinkVisible(state === PUSH_STATE_ENABLED);
-  if (state === PUSH_STATE_DENIED) {
+  setLinkVisible(state === PushState.ENABLED);
+  if (state === PushState.DENIED) {
     setHint("Notifications are blocked in your browser settings.");
   }
 
@@ -359,14 +353,14 @@ const bindNotifySection = async (root) => {
   // programmatic correction we make below, so neither triggers a real opt-in.
   let isSyncing = true;
   const toggle = initCheckToggle(toggleEl, {
-    checked: state === PUSH_STATE_ENABLED,
+    checked: state === PushState.ENABLED,
     onChange: async (isChecked) => {
       if (isSyncing) return;
       const result = isChecked ? await enablePush() : await disablePush();
 
-      if (result === PUSH_STATE_DENIED) {
+      if (result === PushState.DENIED) {
         setHint("Notifications are blocked in your browser settings.");
-      } else if (result === PUSH_STATE_ERROR) {
+      } else if (result === PushState.ERROR) {
         setHint("This browser couldn't register for notifications. Try another browser, or check that push messaging isn't turned off in its settings.");
       } else {
         setHint("");
@@ -374,7 +368,7 @@ const bindNotifySection = async (root) => {
 
       // Reconcile the visual state with what actually happened (e.g. the user
       // dismissed the permission prompt, leaving us disabled).
-      const shouldBeChecked = result === PUSH_STATE_ENABLED;
+      const shouldBeChecked = result === PushState.ENABLED;
       setLinkVisible(shouldBeChecked);
       if (shouldBeChecked !== isChecked) {
         isSyncing = true;

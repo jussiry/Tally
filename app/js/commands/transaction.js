@@ -8,10 +8,8 @@ transaction was created on this device or received via self-mesh sync.
 @category command
 */
 
-import {
-  normalizeCurrencyAmount,
-} from "../models/data-model.js";
-import { PEER_MESSAGE_TYPE_TRANSACTION_CREATED } from "../peer/messages.js";
+import { normalizeCurrencyAmount } from "../models/data-model.js";
+import { MessageType } from "../peer/messages.js";
 import { isAcceptedFriendshipStatus } from "../utils/friendships.js";
 import { asTrimmedString, createId, hasUser } from "../state-utils.js";
 import {
@@ -52,7 +50,7 @@ export const createTransaction = async ({ friendId, amount, message }) => {
 
   const txMsg = await queuePeerMessage(state, {
     toUserId: normalizedFriendId,
-    type: PEER_MESSAGE_TYPE_TRANSACTION_CREATED,
+    type: MessageType.TRANSACTION_CREATED,
     payload: {
       transaction_id: transactionId,
       amount_eur: normalizedAmount,

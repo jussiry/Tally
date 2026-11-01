@@ -45,6 +45,8 @@ const collectEntryPoints = (dir, extensions) => {
       results.push(...collectEntryPoints(full, extensions));
     } else if (entry.isFile()) {
       const ext = path.extname(entry.name).toLowerCase();
+      // Declaration files (globals.d.ts) are types only; nothing to emit.
+      if (entry.name.endsWith(".d.ts")) continue;
       if (extensions.includes(ext)) {
         results.push(full);
       }

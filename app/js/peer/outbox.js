@@ -13,7 +13,7 @@ ledger — so recovering peers can verify authorship offline.
 */
 
 import { createPeerMessageModel } from "../models/data-model.js";
-import { PEER_MESSAGE_TYPE_TRUST_LIMIT_SUGGESTION } from "./messages.js";
+import { MessageType } from "./messages.js";
 import { signTallyMessage } from "./authorship.js";
 import { createKeyProviderFromState } from "../crypto/key-provider.js";
 import { asTrimmedString, createId, hasUser } from "../state-utils.js";
@@ -32,6 +32,10 @@ export const ensureProcessedPeerMessageIds = (state) => {
   }
 };
 
+/**
+ * @param {object} state
+ * @param {{ toUserId?: string, type?: string, payload?: object }} [message]
+ */
 export const queuePeerMessage = async (state, { toUserId, type, payload = {} } = {}) => {
   if (!hasUser(state)) {
     return null;
@@ -136,7 +140,7 @@ export const queueTrustLimitSuggestion = async (state, friendId, trustLimit) => 
 
   return queuePeerMessage(state, {
     toUserId: friendId,
-    type: PEER_MESSAGE_TYPE_TRUST_LIMIT_SUGGESTION,
+    type: MessageType.TRUST_LIMIT_SUGGESTION,
     payload: {
       credit_limit_eur: trustLimit,
     },

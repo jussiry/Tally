@@ -25,20 +25,7 @@ import {
   type TransactionModel,
 } from "./models/data-model.js";
 import { verifyTallyAuthorship } from "./peer/authorship.js";
-import {
-  PEER_MESSAGE_TYPE_FRIEND_ACCEPT,
-  PEER_MESSAGE_TYPE_FRIEND_REQUEST,
-  PEER_MESSAGE_TYPE_FRIENDSHIP_DEFAULT,
-  PEER_MESSAGE_TYPE_HISTORY_DELETED,
-  PEER_MESSAGE_TYPE_NOTIFICATION_PREFS,
-  PEER_MESSAGE_TYPE_PAYMENT_REQUEST,
-  PEER_MESSAGE_TYPE_PAYMENT_REQUEST_CANCEL,
-  PEER_MESSAGE_TYPE_PAYMENT_REQUEST_RESPONSE,
-  PEER_MESSAGE_TYPE_REACTIVATION_REQUEST,
-  PEER_MESSAGE_TYPE_REACTIVATION_RESPONSE,
-  PEER_MESSAGE_TYPE_TRANSACTION_CREATED,
-  PEER_MESSAGE_TYPE_TRUST_LIMIT_SUGGESTION,
-} from "./peer/messages.js";
+import { MessageType } from "./peer/messages.js";
 import { createId } from "./state-utils.js";
 
 // ---------------------------------------------------------------------------
@@ -176,15 +163,15 @@ export const getOpenPaymentRequests = (
   for (const entry of ledger) {
     const requestId = requestIdOf(entry);
     if (!requestId) continue;
-    if (entry.type === PEER_MESSAGE_TYPE_PAYMENT_REQUEST_RESPONSE) {
+    if (entry.type === MessageType.PAYMENT_REQUEST_RESPONSE) {
       closed.add(`${entry.to_user_id}|${entry.from_user_id}|${requestId}`);
-    } else if (entry.type === PEER_MESSAGE_TYPE_PAYMENT_REQUEST_CANCEL) {
+    } else if (entry.type === MessageType.PAYMENT_REQUEST_CANCEL) {
       closed.add(`${entry.from_user_id}|${entry.to_user_id}|${requestId}`);
     }
   }
 
   for (const entry of ledger) {
-    if (entry.type !== PEER_MESSAGE_TYPE_PAYMENT_REQUEST) continue;
+    if (entry.type !== MessageType.PAYMENT_REQUEST) continue;
     const isIncoming = entry.to_user_id === myId;
     if (!isIncoming && entry.from_user_id !== myId) continue;
     // Requests predating request_id fall back to the message id, as the
@@ -236,7 +223,7 @@ export const getLatestFriendshipDefaults = (
   const latest = new Map<string, FriendshipDefault>();
   if (!Array.isArray(ledger) || !myId) return latest;
   for (const entry of ledger) {
-    if (entry.type !== PEER_MESSAGE_TYPE_FRIENDSHIP_DEFAULT) continue;
+    if (entry.type !== MessageType.FRIENDSHIP_DEFAULT) continue;
     const friendId = counterpartOf(entry, myId);
     if (!friendId) continue;
     const createdAt = originOf(entry);
@@ -270,12 +257,12 @@ export const getOpenReactivationRequests = (
 
   const answered = new Set<string>();
   for (const entry of ledger) {
-    if (entry.type === PEER_MESSAGE_TYPE_REACTIVATION_RESPONSE) {
+    if (entry.type === MessageType.REACTIVATION_RESPONSE) {
       answered.add(`${entry.to_user_id}|${requestIdOf(entry)}`);
     }
   }
   for (const entry of ledger) {
-    if (entry.type !== PEER_MESSAGE_TYPE_REACTIVATION_REQUEST) continue;
+    if (entry.type !== MessageType.REACTIVATION_REQUEST) continue;
     const requestId = requestIdOf(entry);
     const friendId = counterpartOf(entry, myId);
     if (!requestId || !friendId || answered.has(`${entry.from_user_id}|${requestId}`)) continue;
@@ -299,7 +286,7 @@ export const deriveTallyFromLedger = (
   let debt = 0;
   const seen = new Set<string>();
   const entries = getLedgerEntriesForPeer(ledger, myId, friendId)
-    .filter((entry) => entry.type === PEER_MESSAGE_TYPE_TRANSACTION_CREATED)
+    .filter((entry) => entry.type === MessageType.TRANSACTION_CREATED)
     .sort((a, b) => (originOf(a) < originOf(b) ? 1 : -1));
   for (const entry of entries) {
     const amount = normalizeCurrencyAmount(entry.payload?.amount_eur, NaN);
@@ -334,7 +321,11 @@ export const deriveTallyFromLedger = (
 // flows normally from then on.
 export const isDeletedHistoryEntry = (
   state: RootState,
-  entry: Pick<LedgerEntryModel, "from_user_id" | "to_user_id" | "originated_at" | "timestamp"> & {
+  entry: {
+    from_user_id: string;
+    to_user_id: string;
+    originated_at?: string;
+    timestamp?: string;
     created_at?: string;
   }
 ): boolean => {
@@ -346,7 +337,7 @@ export const isDeletedHistoryEntry = (
   const origin = entry.originated_at || entry.created_at || entry.timestamp || "";
   return state.ledger.some(
     (deletion) =>
-      deletion.type === PEER_MESSAGE_TYPE_HISTORY_DELETED &&
+      deletion.type === MessageType.HISTORY_DELETED &&
       deletion.from_user_id === myId &&
       deletion.payload?.friend_id === friendId &&
       origin <= originOf(deletion)
@@ -404,22 +395,22 @@ const isAbsentOrNonNegativeAmount = (value: unknown): boolean =>
   value === undefined || value === null || isNonNegativeAmount(value);
 
 const VALUE_RULES: Record<string, (payload: Record<string, unknown>) => boolean> = {
-  [PEER_MESSAGE_TYPE_TRANSACTION_CREATED]: (p) => isPositiveAmount(p.amount_eur),
-  [PEER_MESSAGE_TYPE_PAYMENT_REQUEST]: (p) => isPositiveAmount(p.amount_eur),
-  [PEER_MESSAGE_TYPE_TRUST_LIMIT_SUGGESTION]: (p) => isNonNegativeAmount(p.credit_limit_eur),
-  [PEER_MESSAGE_TYPE_FRIEND_ACCEPT]: (p) => isAbsentOrNonNegativeAmount(p.trust_credit_limit_eur),
-  [PEER_MESSAGE_TYPE_FRIEND_REQUEST]: (p) =>
+  [MessageType.TRANSACTION_CREATED]: (p) => isPositiveAmount(p.amount_eur),
+  [MessageType.PAYMENT_REQUEST]: (p) => isPositiveAmount(p.amount_eur),
+  [MessageType.TRUST_LIMIT_SUGGESTION]: (p) => isNonNegativeAmount(p.credit_limit_eur),
+  [MessageType.FRIEND_ACCEPT]: (p) => isAbsentOrNonNegativeAmount(p.trust_credit_limit_eur),
+  [MessageType.FRIEND_REQUEST]: (p) =>
     isAbsentOrNonNegativeAmount(p.suggested_credit_limit_eur),
-  [PEER_MESSAGE_TYPE_FRIENDSHIP_DEFAULT]: (p) =>
+  [MessageType.FRIENDSHIP_DEFAULT]: (p) =>
     Number.isFinite(normalizeCurrencyAmount(p.tally_eur, NaN)) &&
     (p.note === undefined || typeof p.note === "string"),
   // The embedded history is vetted entry by entry on receipt (verifyReactivationHistory).
-  [PEER_MESSAGE_TYPE_REACTIVATION_REQUEST]: (p) =>
+  [MessageType.REACTIVATION_REQUEST]: (p) =>
     Array.isArray(p.history) && isAbsentOrNonNegativeAmount(p.trust_credit_limit_eur),
-  [PEER_MESSAGE_TYPE_HISTORY_DELETED]: (p) => typeof p.friend_id === "string" && p.friend_id.length > 0,
+  [MessageType.HISTORY_DELETED]: (p) => typeof p.friend_id === "string" && p.friend_id.length > 0,
   // Not a money value, but readers trust the shape: a list of type names.
   // `choices`, when present, maps type names to on/off.
-  [PEER_MESSAGE_TYPE_NOTIFICATION_PREFS]: (p) =>
+  [MessageType.NOTIFICATION_PREFS]: (p) =>
     Array.isArray(p.enabled) &&
     p.enabled.every((type) => typeof type === "string") &&
     (p.choices === undefined ||
@@ -463,7 +454,7 @@ export const verifyReactivationHistory = async (
       (entry.from_user_id === myId && entry.to_user_id === requesterId);
     if (!entry.id || !isBetween) return null;
     // Requests are left out by the sender so histories never nest.
-    if (entry.type === PEER_MESSAGE_TYPE_REACTIVATION_REQUEST) return null;
+    if (entry.type === MessageType.REACTIVATION_REQUEST) return null;
     if (!hasValidLedgerValues(entry)) return null;
     if (!(await verifyLedgerEntryAuthorship(entry))) return null;
     verified.push(entry);

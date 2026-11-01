@@ -15,7 +15,7 @@ domain command module that assumes a state already exists.
 */
 
 import {
-  SIGNER_TYPE_NIP07,
+  SignerType,
   createEmptyAppState,
   createPersonModel,
   normalizeAppState,
@@ -41,7 +41,7 @@ import { appendLedgerEntryFromMessage } from "./ledger.js";
 import { signTallyMessage } from "./peer/authorship.js";
 import { createLocalKeyProvider, isNip07Available } from "./crypto/key-provider.js";
 import { createPeerMessageModel } from "./models/data-model.js";
-import { PEER_MESSAGE_TYPE_NAME_CHANGED } from "./peer/messages.js";
+import { MessageType } from "./peer/messages.js";
 import { subscribeToRelayStatusChanges } from "./signaling/relay-status-registry.js";
 
 const VERSION_KEY = "iou_version";
@@ -198,7 +198,7 @@ const createNip07User = async (trimmedName) => {
     public_key_hex: publicKeyHex,
     private_key: "",
     private_key_hex: "",
-    signer_type: SIGNER_TYPE_NIP07,
+    signer_type: SignerType.NIP07,
     connections: [],
   });
 
@@ -207,6 +207,10 @@ const createNip07User = async (trimmedName) => {
   return persistAndBuildView(state);
 };
 
+/**
+ * @param {string} name
+ * @param {{ existingNsec?: string, ncryptsec?: string, passphrase?: string, useNip07?: boolean }} [options]
+ */
 export const createUser = async (
   name,
   { existingNsec, ncryptsec, passphrase, useNip07 } = {}
@@ -262,7 +266,7 @@ export const createUser = async (
   if (isNewIdentity) {
     const initMsg = createPeerMessageModel({
       id: createId("peer"),
-      type: PEER_MESSAGE_TYPE_NAME_CHANGED,
+      type: MessageType.NAME_CHANGED,
       from_user_id: publicKeyNpub,
       to_user_id: publicKeyNpub,
       created_at: new Date().toISOString(),

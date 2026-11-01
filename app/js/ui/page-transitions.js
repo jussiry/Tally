@@ -5,14 +5,7 @@ It also guards against race conditions during rapid navigation by sequencing swa
 @category ui
 */
 
-import {
-  ROUTE_ADD_FRIEND,
-  ROUTE_FRIEND,
-  ROUTE_PAGE,
-  ROUTE_RECORD,
-  ROUTE_REQUEST,
-  ROUTE_TRUST,
-} from "./routes.js";
+import { Route } from "./routes.js";
 
 const PAGE_CLASS = "page-view";
 const ACTIVE_CLASS = "is-active";
@@ -110,13 +103,13 @@ export const getSlideDirection = (fromRoute, toRoute, navOrder) => {
 
   const getDepth = (route) => {
     if (!route) return 0;
-    if (route.type === ROUTE_PAGE) return 0;
-    if (route.type === ROUTE_FRIEND || route.type === ROUTE_ADD_FRIEND) return 1;
-    if (route.type === ROUTE_RECORD || route.type === ROUTE_REQUEST || route.type === ROUTE_TRUST) return 2;
+    if (route.type === Route.PAGE) return 0;
+    if (route.type === Route.FRIEND || route.type === Route.ADD_FRIEND) return 1;
+    if (route.type === Route.RECORD || route.type === Route.REQUEST || route.type === Route.TRUST) return 2;
     return 1;
   };
 
-  if (fromRoute.type !== ROUTE_PAGE && toRoute.type === ROUTE_PAGE) {
+  if (fromRoute.type !== Route.PAGE && toRoute.type === Route.PAGE) {
     const fromPage = fromRoute.mainPage;
     const toPage = toRoute.page;
     if (fromPage && toPage) {
@@ -138,7 +131,7 @@ export const getSlideDirection = (fromRoute, toRoute, navOrder) => {
     return toDepth > fromDepth ? "from-right" : "from-left";
   }
 
-  if (fromRoute.type === ROUTE_PAGE && toRoute.type === ROUTE_PAGE) {
+  if (fromRoute.type === Route.PAGE && toRoute.type === Route.PAGE) {
     const fromIndex = navOrder.indexOf(fromRoute.page);
     const toIndex = navOrder.indexOf(toRoute.page);
     if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) return null;
@@ -148,6 +141,11 @@ export const getSlideDirection = (fromRoute, toRoute, navOrder) => {
   return null;
 };
 
+/**
+ * @param {HTMLElement} container
+ * @param {HTMLElement} nextPage
+ * @param {{ direction?: string | null, resetScroll?: boolean }} [options]
+ */
 export const swapPage = async (container, nextPage, { direction, resetScroll = false } = {}) => {
   if (!container || !nextPage) return;
 
@@ -189,7 +187,7 @@ export const swapPage = async (container, nextPage, { direction, resetScroll = f
   const enterStart = enterFromRight ? "100%" : "-100%";
   const exitEnd = enterFromRight ? "-100%" : "100%";
 
-  if (currentPage.contains(document.activeElement)) {
+  if (document.activeElement instanceof HTMLElement && currentPage.contains(document.activeElement)) {
     document.activeElement.blur();
   }
 

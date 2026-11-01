@@ -5,17 +5,7 @@ It also coordinates shared startup concerns such as icon sprite injection, versi
 @category entry
 */
 
-import {
-  ROUTE_ADD_FRIEND,
-  ROUTE_FRIEND,
-  ROUTE_NOTIFICATIONS,
-  ROUTE_PAGE,
-  ROUTE_RECORD,
-  ROUTE_REQUEST,
-  ROUTE_TRANSFER,
-  ROUTE_TRUST,
-  ROUTE_WELCOME,
-} from "./ui/routes.js";
+import { Route } from "./ui/routes.js";
 import {
   createUser,
   ensureVersion,
@@ -36,7 +26,7 @@ import { bindWelcome } from "../ui-modules/welcome-page/index.js";
 import { bindFriendDetail } from "../ui-modules/subpage/friend.js";
 import { bindAddFriend } from "../ui-modules/subpage/add-friend.js";
 import { initTallyActions } from "../ui-modules/components/tally-actions.js";
-import { CONFIRM_VARIANT_SUCCESS, showConfirmModal } from "../ui-modules/components/confirm-modal.js";
+import { ConfirmVariant, showConfirmModal } from "../ui-modules/components/confirm-modal.js";
 import { bindRecord } from "../ui-modules/subpage/record.js";
 import { bindRequest } from "../ui-modules/subpage/request.js";
 import { bindTrust } from "../ui-modules/subpage/trust.js";
@@ -54,6 +44,7 @@ import { registerServiceWorker, onUpdateChange } from "./ui/app-update.js";
 import { showNotification } from "./ui/notifications.js";
 import { resyncPushSubscription } from "./push/push-subscribe.js";
 
+/** @type {HTMLElement[]} */
 const navButtons = Array.from(document.querySelectorAll(".nav-item[data-page]"));
 const contentRoot = document.getElementById("page-content");
 const appRoot = document.querySelector(".app");
@@ -123,7 +114,7 @@ const scheduleRouteRefresh = () => {
 };
 
 const setRouteUiState = (route) => {
-  const isWelcome = route.type === ROUTE_WELCOME;
+  const isWelcome = route.type === Route.WELCOME;
   appRoot?.classList.toggle("is-welcome", isWelcome);
   document.body.classList.toggle("is-welcome", isWelcome);
 
@@ -134,7 +125,7 @@ const setRouteUiState = (route) => {
     return;
   }
 
-  if (route.type !== ROUTE_PAGE) {
+  if (route.type !== Route.PAGE) {
     appRoot?.classList.add("is-subpage");
     setActiveNav(navButtons, route.mainPage || lastMainPage);
     return;
@@ -204,50 +195,50 @@ const createPageView = (html) => {
 
 const parseRoute = () => {
   const hash = window.location.hash.replace("#", "");
-  if (!hash) return { type: ROUTE_PAGE, page: "tally" };
+  if (!hash) return { type: Route.PAGE, page: "tally" };
   if (hash === "welcome") {
-    return { type: ROUTE_WELCOME };
+    return { type: Route.WELCOME };
   }
   if (hash.startsWith("friend/")) {
     const friendId = hash.replace("friend/", "");
-    return createSubpageRoute(ROUTE_FRIEND, friendId);
+    return createSubpageRoute(Route.FRIEND, friendId);
   }
   if (hash === "add-friend") {
-    return createSubpageRoute(ROUTE_ADD_FRIEND);
+    return createSubpageRoute(Route.ADD_FRIEND);
   }
   if (hash.startsWith("record")) {
     const parts = hash.split("/");
-    return createSubpageRoute(ROUTE_RECORD, parts[1] || null);
+    return createSubpageRoute(Route.RECORD, parts[1] || null);
   }
   if (hash.startsWith("request")) {
     const parts = hash.split("/");
-    return createSubpageRoute(ROUTE_REQUEST, parts[1] || null);
+    return createSubpageRoute(Route.REQUEST, parts[1] || null);
   }
   if (hash.startsWith("trust/")) {
     const friendId = hash.replace("trust/", "");
-    return createSubpageRoute(ROUTE_TRUST, friendId);
+    return createSubpageRoute(Route.TRUST, friendId);
   }
   if (hash === "transfer") {
-    return createSubpageRoute(ROUTE_TRANSFER);
+    return createSubpageRoute(Route.TRANSFER);
   }
   if (hash === "notifications") {
-    return createSubpageRoute(ROUTE_NOTIFICATIONS);
+    return createSubpageRoute(Route.NOTIFICATIONS);
   }
-  return pageTitles[hash] ? { type: ROUTE_PAGE, page: hash } : { type: ROUTE_PAGE, page: "tally" };
+  return pageTitles[hash] ? { type: Route.PAGE, page: hash } : { type: Route.PAGE, page: "tally" };
 };
 
 const resolveRouteForUserState = async (route) => {
   const userExists = await hasUserData();
 
   if (!userExists) {
-    if (route.type !== ROUTE_WELCOME) {
+    if (route.type !== Route.WELCOME) {
       window.location.hash = "welcome";
       return null;
     }
     return route;
   }
 
-  if (route.type === ROUTE_WELCOME) {
+  if (route.type === Route.WELCOME) {
     window.location.hash = "tally";
     return null;
   }
@@ -256,15 +247,15 @@ const resolveRouteForUserState = async (route) => {
 };
 
 const loadPage = async (route) => {
-  const isWelcome = route.type === ROUTE_WELCOME;
-  const isSubpage = !isWelcome && route.type !== ROUTE_PAGE;
+  const isWelcome = route.type === Route.WELCOME;
+  const isSubpage = !isWelcome && route.type !== Route.PAGE;
   const target = isWelcome
     ? templatePaths.welcome
     : isSubpage
     ? templatePaths.subpage
     : templatePaths[route.page] || templatePaths.balance;
   const direction =
-    isWelcome || currentRoute?.type === ROUTE_WELCOME
+    isWelcome || currentRoute?.type === Route.WELCOME
       ? null
       : getSlideDirection(currentRoute, route, navOrder);
   // Navigating to a different page starts at the top; re-rendering the same
@@ -288,14 +279,14 @@ const loadPage = async (route) => {
     setRouteUiState(route);
     if (data) updateNavBadges(navButtons, data);
 
-    if (route.type === ROUTE_WELCOME) {
+    if (route.type === Route.WELCOME) {
       bindWelcome(pageView, {
         onCreateUser: async (name, options) => {
           await createUser(name, options);
           window.location.hash = "tally";
         },
       });
-    } else if (route.type === ROUTE_FRIEND) {
+    } else if (route.type === Route.FRIEND) {
       const friend = data.friends.find((entry) => entry.person_id === route.friendId);
       if (!friend) {
         window.location.hash = "friends";
@@ -321,7 +312,7 @@ const loadPage = async (route) => {
       }
       initTallyActions(pageView, route.friendId);
       setFallbackBackNavigation(pageView);
-    } else if (route.type === ROUTE_ADD_FRIEND) {
+    } else if (route.type === Route.ADD_FRIEND) {
       const [addFriendHtml, trustLimitFieldHtml, trustExplainerHtml] = await Promise.all([
         fetchTemplate(templatePaths.addFriend),
         fetchTemplate(templatePaths.trustLimitField),
@@ -337,6 +328,7 @@ const loadPage = async (route) => {
 
       // Pre-fill friend key if redirected from send page scanner
       if (window.__prefillFriendKey) {
+        /** @type {HTMLInputElement | null} */
         const friendKeyEl = pageView.querySelector('[data-bind="friend-key"]');
         if (friendKeyEl) {
           friendKeyEl.value = window.__prefillFriendKey;
@@ -354,7 +346,7 @@ const loadPage = async (route) => {
           navigateTo(`friend/${payload.friendId}`);
         });
       }
-    } else if (route.type === ROUTE_RECORD) {
+    } else if (route.type === Route.RECORD) {
       const recordHtml = await fetchTemplate(templatePaths.record);
       renderSubpageContent(pageView, recordHtml);
       const recordHandlers = bindRecord(pageView, data, route.friendId);
@@ -373,7 +365,7 @@ const loadPage = async (route) => {
               title: `Send €${payload.amount} to ${friendName}`,
               body: "Tally is in early development. For now, it is recommended to use it only for small transactions. Are you sure you want to continue?",
               confirmLabel: "Send",
-              variant: CONFIRM_VARIANT_SUCCESS,
+              variant: ConfirmVariant.SUCCESS,
               holdMs: 750,
             });
             if (!confirmed) return;
@@ -382,7 +374,7 @@ const loadPage = async (route) => {
           navigateTo(`friend/${payload.friendId}`);
         });
       }
-    } else if (route.type === ROUTE_REQUEST) {
+    } else if (route.type === Route.REQUEST) {
       const requestHtml = await fetchTemplate(templatePaths.request);
       renderSubpageContent(pageView, requestHtml);
       const requestHandlers = bindRequest(pageView, data, route.friendId);
@@ -398,19 +390,19 @@ const loadPage = async (route) => {
           navigateTo(`friend/${payload.friendId}`);
         });
       }
-    } else if (route.type === ROUTE_TRANSFER) {
+    } else if (route.type === Route.TRANSFER) {
       const transferHtml = await fetchTemplate(templatePaths.transfer);
       renderSubpageContent(pageView, transferHtml);
       bindTransfer(pageView, data);
       document.title = "Tally — Transfer";
       setFallbackBackNavigation(pageView);
-    } else if (route.type === ROUTE_NOTIFICATIONS) {
+    } else if (route.type === Route.NOTIFICATIONS) {
       const notificationsHtml = await fetchTemplate(templatePaths.notifications);
       renderSubpageContent(pageView, notificationsHtml);
       bindNotificationSettings(pageView, data);
       document.title = "Tally — Notifications";
       setFallbackBackNavigation(pageView);
-    } else if (route.type === ROUTE_TRUST) {
+    } else if (route.type === Route.TRUST) {
       const [trustHtml, trustLimitFieldHtml, trustExplainerHtml] = await Promise.all([
         fetchTemplate(templatePaths.trust),
         fetchTemplate(templatePaths.trustLimitField),
@@ -456,10 +448,10 @@ const loadPage = async (route) => {
     if (sequence !== navigationSequence) return;
 
     currentRoute = route;
-    if (route.type === ROUTE_PAGE) {
+    if (route.type === Route.PAGE) {
       lastMainPage = route.page;
     }
-    if (route.type === ROUTE_FRIEND && friendTransactionIdsToMark) {
+    if (route.type === Route.FRIEND && friendTransactionIdsToMark) {
       void markFriendTransactionsViewed(route.friendId, friendTransactionIdsToMark);
     }
   } catch (error) {
@@ -476,7 +468,7 @@ navButtons.forEach((button) => {
     const page = button.dataset.page;
     if (!page) return;
     const route = parseRoute();
-    if (route.type === ROUTE_PAGE && route.page === page) return;
+    if (route.type === Route.PAGE && route.page === page) return;
     window.location.hash = page;
   });
 });

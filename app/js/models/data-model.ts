@@ -11,7 +11,7 @@ or network payloads hand over and coerce it into a known good structure. The
 */
 
 import {
-  FRIENDSHIP_STATUS_ACCEPTED,
+  FriendshipStatus,
   PENDING_CREDIT_LIMIT_LOWERED,
 } from "../utils/friendships.js";
 import { DEFAULT_STUN_SERVERS, normalizeStunList } from "../utils/stun-url.js";
@@ -85,9 +85,12 @@ export interface PersonModel {
   connections?: FriendModel[];
 }
 
-export const SIGNER_TYPE_LOCAL = "local";
-export const SIGNER_TYPE_NIP07 = "nip07";
-export type SignerType = typeof SIGNER_TYPE_LOCAL | typeof SIGNER_TYPE_NIP07;
+export const SignerType = Object.freeze({
+  LOCAL: "local",
+  NIP07: "nip07",
+});
+
+export type SignerType = (typeof SignerType)[keyof typeof SignerType];
 
 /** A signed Nostr event (NIP-01) used as a Tally authorship proof. */
 export interface SignedNostrEvent {
@@ -304,7 +307,7 @@ export const createFriendModel = (input: any = {}): FriendModel => {
     person_name: asTrimmedStringOrDefault(input.person_name),
     friendship_status: asTrimmedStringOrDefault(
       input.friendship_status,
-      FRIENDSHIP_STATUS_ACCEPTED
+      FriendshipStatus.ACCEPTED
     ),
     debt_eur: asNumberOrDefault(input.debt_eur, 0),
     trust_credit_limit_eur: asNumberOrDefault(input.trust_credit_limit_eur, 0),
@@ -351,7 +354,7 @@ export const createPersonModel = (
     public_key_hex: asTrimmedStringOrDefault(input.public_key_hex),
     private_key: includePrivateKeys ? asTrimmedStringOrDefault(input.private_key) : "",
     private_key_hex: includePrivateKeys ? asTrimmedStringOrDefault(input.private_key_hex) : "",
-    signer_type: input.signer_type === SIGNER_TYPE_NIP07 ? SIGNER_TYPE_NIP07 : SIGNER_TYPE_LOCAL,
+    signer_type: input.signer_type === SignerType.NIP07 ? SignerType.NIP07 : SignerType.LOCAL,
     friends,
   };
 };

@@ -29,10 +29,7 @@ import {
   suggestReactivation,
 } from "../../js/commands/friendship-default.js";
 import {
-  FRIENDSHIP_STATUS_ACCEPTED,
-  FRIENDSHIP_STATUS_PENDING_INCOMING,
-  FRIENDSHIP_STATUS_PENDING_OUTGOING,
-  FRIENDSHIP_STATUS_REJECTED,
+  FriendshipStatus,
   PENDING_CREDIT_LIMIT_LOWERED,
   isAcceptedFriendshipStatus,
   isDeactivatedFriendshipStatus,
@@ -41,7 +38,7 @@ import { formatCurrency, formatDate, formatSigned } from "../../js/ui/format.js"
 import { createFriendIcon, setFriendIconStatus } from "../components/friend-icon.js";
 import { initInfiniteList } from "../../js/ui/infinite-list.js";
 import { getConnectedPeerIds, getServerPresentPeerIds } from "../../js/peer/status.js";
-import { CONFIRM_VARIANT_SUCCESS, showConfirmModal } from "../components/confirm-modal.js";
+import { ConfirmVariant, showConfirmModal } from "../components/confirm-modal.js";
 import { isSameRelayUrl } from "../../js/utils/relay-url.js";
 
 const formatDefaultDate = (iso) => {
@@ -96,7 +93,7 @@ const renderDeactivatedFriendship = (root, { friend, friendId, friendName, frien
         title: "Reactivate friendship",
         body: `Your friendship with ${friendName} becomes active again, and your historic records count in your total tally again.`,
         confirmLabel: "Reactivate",
-        variant: CONFIRM_VARIANT_SUCCESS,
+        variant: ConfirmVariant.SUCCESS,
       });
       if (!confirmed) return;
       requestEl.hidden = true;
@@ -116,7 +113,7 @@ const renderDeactivatedFriendship = (root, { friend, friendId, friendName, frien
         title: "Suggest reactivation",
         body: `If ${friendName} accepts, your friendship and your historic records are reactivated and count in your total tally again.\n\nYour copy of the records goes along with the suggestion, in case ${friendFirstName} no longer has theirs.`,
         confirmLabel: "Suggest",
-        variant: CONFIRM_VARIANT_SUCCESS,
+        variant: ConfirmVariant.SUCCESS,
       });
       if (!confirmed) return;
       await suggestReactivation(friendId);
@@ -158,7 +155,7 @@ export const bindFriendDetail = (root, data, friendId) => {
   const friend = data.friends.find((entry) => entry.person_id === friendId);
   const friendName = friend?.person_name || "Friend";
   const friendFirstName = friendName.split(/\s+/)[0] || friendName;
-  const friendshipStatus = friend?.friendship_status || FRIENDSHIP_STATUS_ACCEPTED;
+  const friendshipStatus = friend?.friendship_status || FriendshipStatus.ACCEPTED;
   const tally = friend?.debt_eur || 0;
   const isOnline = getConnectedPeerIds().includes(friendId);
   const isRelay = !isOnline && getServerPresentPeerIds().includes(friendId);
@@ -225,7 +222,7 @@ export const bindFriendDetail = (root, data, friendId) => {
       const syncDate = new Date(friend.last_synced_at);
       if (!Number.isNaN(syncDate.getTime())) {
         const now = new Date();
-        const diffMs = now - syncDate;
+        const diffMs = now.getTime() - syncDate.getTime();
         const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
         const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
         const diffMinutes = Math.floor(diffMs / (1000 * 60));
@@ -255,7 +252,7 @@ export const bindFriendDetail = (root, data, friendId) => {
       : `Friendship with ${friendFirstName}`;
   }
   if (headerRight) {
-    if (friendshipStatus === FRIENDSHIP_STATUS_ACCEPTED) {
+    if (friendshipStatus === FriendshipStatus.ACCEPTED) {
       headerRight.innerHTML = `
         <button class="friend-send surface-box" type="button" data-action="send" aria-label="Record tally">
           <svg class="friend-send-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -269,7 +266,7 @@ export const bindFriendDetail = (root, data, friendId) => {
           </svg>
         </button>
       `;
-    } else if (friendshipStatus === FRIENDSHIP_STATUS_REJECTED) {
+    } else if (friendshipStatus === FriendshipStatus.REJECTED) {
       headerRight.innerHTML = `
         <span class="friend-status-chip surface-box">Rejected</span>
       `;
@@ -280,11 +277,11 @@ export const bindFriendDetail = (root, data, friendId) => {
     }
   }
   if (friendRequestEl) {
-    if (friendshipStatus === FRIENDSHIP_STATUS_PENDING_INCOMING) {
+    if (friendshipStatus === FriendshipStatus.PENDING_INCOMING) {
       friendRequestEl.hidden = false;
       if (friendRequestLabelEl) friendRequestLabelEl.textContent = `${friendFirstName} wants to be friends`;
       if (friendAcceptActionsEl) friendAcceptActionsEl.hidden = false;
-    } else if (friendshipStatus === FRIENDSHIP_STATUS_PENDING_OUTGOING) {
+    } else if (friendshipStatus === FriendshipStatus.PENDING_OUTGOING) {
       friendRequestEl.hidden = false;
       if (friendRequestLabelEl) friendRequestLabelEl.textContent = `Friend request sent to ${friendFirstName}`;
       if (friendRemoveActionsEl) friendRemoveActionsEl.hidden = false;
@@ -292,8 +289,8 @@ export const bindFriendDetail = (root, data, friendId) => {
   }
   if (trustTitleEl) {
     trustTitleEl.textContent =
-      friendshipStatus === FRIENDSHIP_STATUS_PENDING_OUTGOING ||
-      friendshipStatus === FRIENDSHIP_STATUS_PENDING_INCOMING
+      friendshipStatus === FriendshipStatus.PENDING_OUTGOING ||
+      friendshipStatus === FriendshipStatus.PENDING_INCOMING
         ? "Suggested trust limit"
         : "Trust limit";
   }
@@ -304,8 +301,8 @@ export const bindFriendDetail = (root, data, friendId) => {
   if (
     trustButton &&
     friendId &&
-    (friendshipStatus === FRIENDSHIP_STATUS_ACCEPTED ||
-      friendshipStatus === FRIENDSHIP_STATUS_PENDING_OUTGOING)
+    (friendshipStatus === FriendshipStatus.ACCEPTED ||
+      friendshipStatus === FriendshipStatus.PENDING_OUTGOING)
   ) {
     trustButton.addEventListener("click", () => {
       window.location.hash = `trust/${friendId}`;
@@ -330,9 +327,9 @@ export const bindFriendDetail = (root, data, friendId) => {
       tallyAmountEl.classList.toggle("neg", tally < 0);
     } else {
       const statusText =
-        friendshipStatus === FRIENDSHIP_STATUS_PENDING_INCOMING
+        friendshipStatus === FriendshipStatus.PENDING_INCOMING
           ? "Incoming"
-          : friendshipStatus === FRIENDSHIP_STATUS_REJECTED
+          : friendshipStatus === FriendshipStatus.REJECTED
           ? "Rejected"
           : "Pending";
       tallyAmountEl.textContent = statusText;
@@ -515,9 +512,9 @@ export const bindFriendDetail = (root, data, friendId) => {
 
   if (!hasRecords) {
     const statusBodyText =
-      friendshipStatus === FRIENDSHIP_STATUS_PENDING_INCOMING
+      friendshipStatus === FriendshipStatus.PENDING_INCOMING
         ? "This friend request is waiting for your decision."
-        : friendshipStatus === FRIENDSHIP_STATUS_REJECTED
+        : friendshipStatus === FriendshipStatus.REJECTED
         ? "This friendship request has been rejected."
         : "This friend request is pending until the other user accepts it.";
     bodyEl.innerHTML = `<div class="empty">${statusBodyText}</div>`;

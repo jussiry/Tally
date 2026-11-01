@@ -21,7 +21,7 @@ All helpers mutate `state` in place; the caller persists.
 @category network
 */
 
-import { PEER_MESSAGE_TYPE_NOTIFICATION_PREFS } from "../peer/messages.js";
+import { MessageType } from "../peer/messages.js";
 import { queuePeerMessage } from "../peer/outbox.js";
 import { signTallyMessage } from "../peer/authorship.js";
 import { createKeyProviderFromState } from "../crypto/key-provider.js";
@@ -41,7 +41,7 @@ const prefsPayload = (choices) => ({ choices, enabled: resolveOsNotifyTypes(choi
 const queuePrefsTo = async (state, friendId, payload) => {
   const message = await queuePeerMessage(state, {
     toUserId: friendId,
-    type: PEER_MESSAGE_TYPE_NOTIFICATION_PREFS,
+    type: MessageType.NOTIFICATION_PREFS,
     payload,
   });
   if (message) appendLedgerEntryFromMessage(state, message);
@@ -52,7 +52,7 @@ const queuePrefsTo = async (state, friendId, payload) => {
 const appendSelfPrefsEntry = async (state, payload) => {
   const unsigned = createPeerMessageModel({
     id: createId("peer"),
-    type: PEER_MESSAGE_TYPE_NOTIFICATION_PREFS,
+    type: MessageType.NOTIFICATION_PREFS,
     from_user_id: state.user.id,
     to_user_id: state.user.id,
     created_at: new Date().toISOString(),

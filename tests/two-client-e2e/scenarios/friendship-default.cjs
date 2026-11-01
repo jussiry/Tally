@@ -98,8 +98,8 @@ module.exports = {
     await alice.page.fill('[data-bind="confirm-modal-input"]', NOTE);
     await holdConfirm(alice);
 
-    await waitForFriend(alice, bobId, 'friend && friend.friendship_status === S.FRIENDSHIP_STATUS_DEACTIVATED', timeout);
-    await waitForFriend(bob, aliceId, 'friend && friend.friendship_status === S.FRIENDSHIP_STATUS_DEACTIVATED', timeout);
+    await waitForFriend(alice, bobId, 'friend && friend.friendship_status === S.FriendshipStatus.DEACTIVATED', timeout);
+    await waitForFriend(bob, aliceId, 'friend && friend.friendship_status === S.FriendshipStatus.DEACTIVATED', timeout);
 
     const bobAfterDefault = await readFriend(bob, aliceId);
     assert.equal(bobAfterDefault.friend.default_info.note, NOTE);
@@ -175,7 +175,7 @@ module.exports = {
     await waitForFriend(
       bob,
       aliceId,
-      'friend && friend.friendship_status === S.FRIENDSHIP_STATUS_DEACTIVATED && friend.pending_reactivation && friend.pending_reactivation.is_incoming',
+      'friend && friend.friendship_status === S.FriendshipStatus.DEACTIVATED && friend.pending_reactivation && friend.pending_reactivation.is_incoming',
       timeout
     );
     const bobRestored = (await readFriend(bob, aliceId)).friend;
@@ -188,8 +188,8 @@ module.exports = {
     await bob.page.click(`${PAGE} [data-action="accept-reactivation"]`);
     await holdConfirm(bob);
 
-    await waitForFriend(bob, aliceId, 'friend && friend.friendship_status === S.FRIENDSHIP_STATUS_ACCEPTED', timeout);
-    await waitForFriend(alice, bobId, 'friend && friend.friendship_status === S.FRIENDSHIP_STATUS_ACCEPTED', timeout);
+    await waitForFriend(bob, aliceId, 'friend && friend.friendship_status === S.FriendshipStatus.ACCEPTED', timeout);
+    await waitForFriend(alice, bobId, 'friend && friend.friendship_status === S.FriendshipStatus.ACCEPTED', timeout);
     const bobTotals = (await readFriend(bob, aliceId)).totals;
     const aliceTotals = (await readFriend(alice, bobId)).totals;
     assert.equal(bobTotals.totalTally, 20, "The €20 counts for Bob again");

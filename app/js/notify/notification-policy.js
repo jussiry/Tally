@@ -49,21 +49,7 @@ function here.
 */
 
 import { formatCurrency } from "../ui/format.js";
-import {
-  PEER_MESSAGE_TYPE_FRIEND_ACCEPT,
-  PEER_MESSAGE_TYPE_FRIEND_REJECT,
-  PEER_MESSAGE_TYPE_FRIEND_REQUEST,
-  PEER_MESSAGE_TYPE_FRIENDSHIP_DEFAULT,
-  PEER_MESSAGE_TYPE_NAME_CHANGED,
-  PEER_MESSAGE_TYPE_NOTIFICATION_PREFS,
-  PEER_MESSAGE_TYPE_PAYMENT_REQUEST,
-  PEER_MESSAGE_TYPE_PAYMENT_REQUEST_CANCEL,
-  PEER_MESSAGE_TYPE_PAYMENT_REQUEST_RESPONSE,
-  PEER_MESSAGE_TYPE_REACTIVATION_REQUEST,
-  PEER_MESSAGE_TYPE_REACTIVATION_RESPONSE,
-  PEER_MESSAGE_TYPE_TRANSACTION_CREATED,
-  PEER_MESSAGE_TYPE_TRUST_LIMIT_SUGGESTION,
-} from "../peer/messages.js";
+import { MessageType } from "../peer/messages.js";
 
 const APP_NAME = "Tally";
 
@@ -75,30 +61,30 @@ const APP_NAME = "Tally";
 // before per-type choice existed stay on by default, as does a friendship
 // being deactivated or reactivated (rare, and it matters); the rest are opt-in.
 export const OS_NOTIFY_SETTINGS = [
-  { label: "Money received", types: [PEER_MESSAGE_TYPE_TRANSACTION_CREATED], defaultEnabled: true },
-  { label: "Payment requested", types: [PEER_MESSAGE_TYPE_PAYMENT_REQUEST], defaultEnabled: true },
+  { label: "Money received", types: [MessageType.TRANSACTION_CREATED], defaultEnabled: true },
+  { label: "Payment requested", types: [MessageType.PAYMENT_REQUEST], defaultEnabled: true },
   {
     label: "Payment request response",
-    types: [PEER_MESSAGE_TYPE_PAYMENT_REQUEST_RESPONSE, PEER_MESSAGE_TYPE_PAYMENT_REQUEST_CANCEL],
+    types: [MessageType.PAYMENT_REQUEST_RESPONSE, MessageType.PAYMENT_REQUEST_CANCEL],
     defaultEnabled: false,
   },
-  { label: "Friend request", types: [PEER_MESSAGE_TYPE_FRIEND_REQUEST], defaultEnabled: true },
+  { label: "Friend request", types: [MessageType.FRIEND_REQUEST], defaultEnabled: true },
   {
     label: "Friend request response",
-    types: [PEER_MESSAGE_TYPE_FRIEND_ACCEPT, PEER_MESSAGE_TYPE_FRIEND_REJECT],
+    types: [MessageType.FRIEND_ACCEPT, MessageType.FRIEND_REJECT],
     defaultEnabled: false,
   },
   {
     label: "Friendship deactivated or reactivated",
     types: [
-      PEER_MESSAGE_TYPE_FRIENDSHIP_DEFAULT,
-      PEER_MESSAGE_TYPE_REACTIVATION_REQUEST,
-      PEER_MESSAGE_TYPE_REACTIVATION_RESPONSE,
+      MessageType.FRIENDSHIP_DEFAULT,
+      MessageType.REACTIVATION_REQUEST,
+      MessageType.REACTIVATION_RESPONSE,
     ],
     defaultEnabled: true,
   },
-  { label: "Trust limit changes", types: [PEER_MESSAGE_TYPE_TRUST_LIMIT_SUGGESTION], defaultEnabled: false },
-  { label: "Friend changed name", types: [PEER_MESSAGE_TYPE_NAME_CHANGED], defaultEnabled: false },
+  { label: "Trust limit changes", types: [MessageType.TRUST_LIMIT_SUGGESTION], defaultEnabled: false },
+  { label: "Friend changed name", types: [MessageType.NAME_CHANGED], defaultEnabled: false },
 ];
 
 const ALL_TYPES = OS_NOTIFY_SETTINGS.flatMap((setting) => setting.types);
@@ -120,9 +106,9 @@ const DEFAULT_TYPES = new Set(getDefaultOsNotifyTypes());
 // left at their defaults.
 const TYPES_BEFORE_PER_TYPE_CHOICES = ALL_TYPES.filter(
   (type) =>
-    type !== PEER_MESSAGE_TYPE_FRIENDSHIP_DEFAULT &&
-    type !== PEER_MESSAGE_TYPE_REACTIVATION_REQUEST &&
-    type !== PEER_MESSAGE_TYPE_REACTIVATION_RESPONSE
+    type !== MessageType.FRIENDSHIP_DEFAULT &&
+    type !== MessageType.REACTIVATION_REQUEST &&
+    type !== MessageType.REACTIVATION_RESPONSE
 );
 
 // Keep only known types with a boolean choice; unknown types from newer peers
@@ -163,7 +149,7 @@ const entryTime = (entry) => entry?.originated_at || entry?.timestamp || "";
 export const collectOsNotifyChoicesByAuthor = (ledger) => {
   const latest = new Map();
   (Array.isArray(ledger) ? ledger : []).forEach((entry) => {
-    if (entry?.type !== PEER_MESSAGE_TYPE_NOTIFICATION_PREFS) return;
+    if (entry?.type !== MessageType.NOTIFICATION_PREFS) return;
     if (!Array.isArray(entry.payload?.enabled)) return;
     const previous = latest.get(entry.from_user_id);
     if (!previous || entryTime(entry) > entryTime(previous)) {
@@ -208,39 +194,39 @@ const hint = (body) => ({ title: APP_NAME, body });
 // know it; trust-limit wording stays neutral because only the recipient knows
 // whether a suggestion raised, lowered or agreed a limit.
 const HINT_BUILDERS = {
-  [PEER_MESSAGE_TYPE_TRANSACTION_CREATED]: (message, senderName) => {
+  [MessageType.TRANSACTION_CREATED]: (message, senderName) => {
     const amount = normalizeAmount(message.payload?.amount_eur);
     return amount === null ? null : hint(`${senderName} sent you ${formatCurrency(amount)}`);
   },
-  [PEER_MESSAGE_TYPE_PAYMENT_REQUEST]: (message, senderName) => {
+  [MessageType.PAYMENT_REQUEST]: (message, senderName) => {
     const amount = normalizeAmount(message.payload?.amount_eur);
     if (amount === null) return null;
     const note = typeof message.payload?.note === "string" ? message.payload.note.trim() : "";
     const base = `${senderName} requested ${formatCurrency(amount)}`;
     return hint(note ? `${base} — ${note}` : base);
   },
-  [PEER_MESSAGE_TYPE_FRIEND_REQUEST]: (message, senderName) =>
+  [MessageType.FRIEND_REQUEST]: (message, senderName) =>
     hint(`${senderName} sent you a friend request`),
-  [PEER_MESSAGE_TYPE_PAYMENT_REQUEST_RESPONSE]: (message, senderName) =>
+  [MessageType.PAYMENT_REQUEST_RESPONSE]: (message, senderName) =>
     hint(
       message.payload?.accepted === true
         ? `${senderName} accepted your payment request`
         : `${senderName} declined your payment request`
     ),
-  [PEER_MESSAGE_TYPE_PAYMENT_REQUEST_CANCEL]: (message, senderName) =>
+  [MessageType.PAYMENT_REQUEST_CANCEL]: (message, senderName) =>
     hint(`${senderName} cancelled their payment request`),
-  [PEER_MESSAGE_TYPE_FRIEND_ACCEPT]: (message, senderName) =>
+  [MessageType.FRIEND_ACCEPT]: (message, senderName) =>
     hint(`${senderName} accepted your friend request`),
-  [PEER_MESSAGE_TYPE_FRIEND_REJECT]: (message, senderName) =>
+  [MessageType.FRIEND_REJECT]: (message, senderName) =>
     hint(`${senderName} rejected your friend request`),
-  [PEER_MESSAGE_TYPE_TRUST_LIMIT_SUGGESTION]: (message, senderName) => {
+  [MessageType.TRUST_LIMIT_SUGGESTION]: (message, senderName) => {
     const limit = Number(message.payload?.credit_limit_eur);
     if (!Number.isFinite(limit) || limit < 0) return null;
     return hint(`${senderName}: trust limit ${formatCurrency(limit)}`);
   },
   // The tally is worded from the sender's side here; the recipient's toast
   // words it from theirs.
-  [PEER_MESSAGE_TYPE_FRIENDSHIP_DEFAULT]: (message, senderName) => {
+  [MessageType.FRIENDSHIP_DEFAULT]: (message, senderName) => {
     const tally = Number(message.payload?.tally_eur) || 0;
     return hint(
       tally < 0
@@ -250,15 +236,15 @@ const HINT_BUILDERS = {
         : `${senderName} deactivated your friend connection`
     );
   },
-  [PEER_MESSAGE_TYPE_REACTIVATION_REQUEST]: (message, senderName) =>
+  [MessageType.REACTIVATION_REQUEST]: (message, senderName) =>
     hint(`${senderName} suggests reactivating your friendship`),
-  [PEER_MESSAGE_TYPE_REACTIVATION_RESPONSE]: (message, senderName) =>
+  [MessageType.REACTIVATION_RESPONSE]: (message, senderName) =>
     hint(
       message.payload?.accepted === true
         ? `${senderName} reactivated your friendship`
         : `${senderName} declined reactivating your friendship`
     ),
-  [PEER_MESSAGE_TYPE_NAME_CHANGED]: (message) => {
+  [MessageType.NAME_CHANGED]: (message) => {
     const name = typeof message.payload?.name === "string" ? message.payload.name.trim() : "";
     return name ? hint(`A friend is now called ${name}`) : null;
   },
@@ -274,6 +260,10 @@ export const isOsNotifiableType = (type) => Boolean(HINT_BUILDERS[type]);
 // missing name never produces "undefined". The message id becomes the
 // notification tag, so a push and a local notification for the same message
 // replace each other instead of stacking.
+/**
+ * @param {object} message
+ * @param {{ senderName?: string, recipientTypes?: string[] }} [options]
+ */
 export const buildOsNotificationHint = (message, { senderName, recipientTypes } = {}) => {
   if (!message || typeof message !== "object") return null;
   const builder = HINT_BUILDERS[message.type];

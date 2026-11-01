@@ -35,24 +35,26 @@ export const isPushSupported = () =>
   "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 
 // This device's push states, as getPushState, enablePush and disablePush
-// return them. PUSH_STATE_ERROR comes only from enablePush.
-export const PUSH_STATE_UNSUPPORTED = "unsupported";
-export const PUSH_STATE_DENIED = "denied";
-export const PUSH_STATE_ENABLED = "enabled";
-export const PUSH_STATE_DISABLED = "disabled";
-export const PUSH_STATE_ERROR = "error";
+// return them. PushState.ERROR comes only from enablePush.
+export const PushState = Object.freeze({
+  UNSUPPORTED: "unsupported",
+  DENIED: "denied",
+  ENABLED: "enabled",
+  DISABLED: "disabled",
+  ERROR: "error",
+});
 
 // Snapshot of this device's push state, used to render the settings toggle.
-// Returns one of the PUSH_STATE_* values above (never PUSH_STATE_ERROR).
+// Returns one of the PUSH_STATE_* values above (never PushState.ERROR).
 export const getPushState = async () => {
-  if (!isPushSupported()) return PUSH_STATE_UNSUPPORTED;
-  if (Notification.permission === "denied") return PUSH_STATE_DENIED;
+  if (!isPushSupported()) return PushState.UNSUPPORTED;
+  if (Notification.permission === "denied") return PushState.DENIED;
   try {
     const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription();
-    return subscription ? PUSH_STATE_ENABLED : PUSH_STATE_DISABLED;
+    return subscription ? PushState.ENABLED : PushState.DISABLED;
   } catch {
-    return PUSH_STATE_DISABLED;
+    return PushState.DISABLED;
   }
 };
 
@@ -65,19 +67,19 @@ const fetchVapidPublicKey = async () => {
 };
 
 // Request permission (if needed), create/reuse a subscription, and register it
-// with the relays. Returns the resulting push state, or PUSH_STATE_ERROR when the
+// with the relays. Returns the resulting push state, or PushState.ERROR when the
 // browser couldn't create a subscription — e.g. Chrome's "Registration failed -
 // push service error" when it can't reach its push service (Brave with Google
 // push disabled, Chromium builds without Google services, a blocking network).
 export const enablePush = async () => {
-  if (!isPushSupported()) return PUSH_STATE_UNSUPPORTED;
+  if (!isPushSupported()) return PushState.UNSUPPORTED;
 
   const permission =
     Notification.permission === "granted"
       ? "granted"
       : await Notification.requestPermission();
   if (permission !== "granted") {
-    return permission === "denied" ? PUSH_STATE_DENIED : PUSH_STATE_DISABLED;
+    return permission === "denied" ? PushState.DENIED : PushState.DISABLED;
   }
 
   try {
@@ -91,16 +93,16 @@ export const enablePush = async () => {
       });
     }
     getRealtimeClient()?.setPushSubscription(subscription.toJSON());
-    return PUSH_STATE_ENABLED;
+    return PushState.ENABLED;
   } catch (error) {
     console.warn("Push subscription failed:", error);
-    return PUSH_STATE_ERROR;
+    return PushState.ERROR;
   }
 };
 
 // Tear down this device's subscription and tell the relays to forget it.
 export const disablePush = async () => {
-  if (!isPushSupported()) return PUSH_STATE_UNSUPPORTED;
+  if (!isPushSupported()) return PushState.UNSUPPORTED;
   try {
     const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription();
@@ -112,7 +114,7 @@ export const disablePush = async () => {
     // Best-effort — even if unsubscribe fails the toggle reflects reality next
     // time getPushState() runs.
   }
-  return PUSH_STATE_DISABLED;
+  return PushState.DISABLED;
 };
 
 // Re-publish an existing subscription to the relays on app start, so a device

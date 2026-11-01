@@ -8,7 +8,7 @@ initializing the state store, not a mutation of an already-running one.
 @category command
 */
 
-import { PEER_MESSAGE_TYPE_NAME_CHANGED } from "../peer/messages.js";
+import { MessageType } from "../peer/messages.js";
 import { isPeerEligibleFriendshipStatus } from "../utils/friendships.js";
 import { asTrimmedString, hasUser } from "../state-utils.js";
 import {
@@ -44,7 +44,7 @@ export const updateUserName = async (name) => {
   for (const friend of eligibleFriends) {
     const message = await queuePeerMessage(state, {
       toUserId: friend.person_id,
-      type: PEER_MESSAGE_TYPE_NAME_CHANGED,
+      type: MessageType.NAME_CHANGED,
       payload: { name: trimmedName },
     });
     if (message) {

@@ -22,17 +22,19 @@ instead of reconnect and JSON routing details.
 // and hammering it just bloats the console.
 // WebSocket message types between client and relay. The other side keeps the
 // same list in server/signaling/websocket-server.js; change both together.
-const SIGNAL_REGISTER = "register";
-const SIGNAL_PEER_CANDIDATES = "peer_candidates";
-const SIGNAL_CONNECT_PEER = "connect_peer";
-const SIGNAL_WEBRTC_SIGNAL = "webrtc_signal";
-const SIGNAL_QUEUE_PEER_ENVELOPE = "queue_peer_envelope";
-const SIGNAL_PUSH_SUBSCRIBE = "push_subscribe";
-const SIGNAL_PUSH_UNSUBSCRIBE = "push_unsubscribe";
-const SIGNAL_PEER_CONNECT = "peer_connect";
-const SIGNAL_PEER_DISCONNECT = "peer_disconnect";
-const SIGNAL_PEER_ENVELOPE = "peer_envelope";
-const SIGNAL_QUEUE_DRAINED = "queue_drained";
+const SignalType = Object.freeze({
+  REGISTER: "register",
+  PEER_CANDIDATES: "peer_candidates",
+  CONNECT_PEER: "connect_peer",
+  WEBRTC_SIGNAL: "webrtc_signal",
+  QUEUE_PEER_ENVELOPE: "queue_peer_envelope",
+  PUSH_SUBSCRIBE: "push_subscribe",
+  PUSH_UNSUBSCRIBE: "push_unsubscribe",
+  PEER_CONNECT: "peer_connect",
+  PEER_DISCONNECT: "peer_disconnect",
+  PEER_ENVELOPE: "peer_envelope",
+  QUEUE_DRAINED: "queue_drained",
+});
 
 const RECONNECT_FIRST_MS = 2500;
 const RECONNECT_RETRY_MS = 5 * 60 * 1000;
@@ -114,17 +116,17 @@ const createSignalingClient = (
     }
 
     sendJson(socket, {
-      type: SIGNAL_REGISTER,
+      type: SignalType.REGISTER,
       user_id: session.userId,
       device_id: session.deviceId,
     });
     sendJson(socket, {
-      type: SIGNAL_PEER_CANDIDATES,
+      type: SignalType.PEER_CANDIDATES,
       peer_user_ids: session.peerIds,
     });
     if (pushSubscription) {
       sendJson(socket, {
-        type: SIGNAL_PUSH_SUBSCRIBE,
+        type: SignalType.PUSH_SUBSCRIBE,
         subscription: pushSubscription,
       });
     }
@@ -153,7 +155,7 @@ const createSignalingClient = (
       return;
     }
 
-    if (payload.type === SIGNAL_PEER_CONNECT && typeof onPeerConnect === "function") {
+    if (payload.type === SignalType.PEER_CONNECT && typeof onPeerConnect === "function") {
       onPeerConnect({
         peerUserId: payload.peer_user_id,
         peerDeviceId: payload.peer_device_id || "",
@@ -162,7 +164,7 @@ const createSignalingClient = (
       return;
     }
 
-    if (payload.type === SIGNAL_PEER_DISCONNECT && typeof onPeerDisconnect === "function") {
+    if (payload.type === SignalType.PEER_DISCONNECT && typeof onPeerDisconnect === "function") {
       onPeerDisconnect({
         peerUserId: payload.peer_user_id,
         peerDeviceId: payload.peer_device_id || "",
@@ -170,7 +172,7 @@ const createSignalingClient = (
       return;
     }
 
-    if (payload.type === SIGNAL_WEBRTC_SIGNAL && typeof onPeerSignal === "function") {
+    if (payload.type === SignalType.WEBRTC_SIGNAL && typeof onPeerSignal === "function") {
       onPeerSignal({
         peerUserId: payload.peer_user_id,
         peerDeviceId: payload.peer_device_id || "",
@@ -179,14 +181,14 @@ const createSignalingClient = (
       return;
     }
 
-    if (payload.type === SIGNAL_PEER_ENVELOPE && typeof onPeerEnvelopeFromServer === "function") {
+    if (payload.type === SignalType.PEER_ENVELOPE && typeof onPeerEnvelopeFromServer === "function") {
       onPeerEnvelopeFromServer({
         envelope: payload.envelope || null,
       });
       return;
     }
 
-    if (payload.type === SIGNAL_QUEUE_DRAINED && typeof onQueueDrained === "function") {
+    if (payload.type === SignalType.QUEUE_DRAINED && typeof onQueueDrained === "function") {
       onQueueDrained();
     }
   };
@@ -238,7 +240,7 @@ const createSignalingClient = (
       }
 
       sendJson(socket, {
-        type: SIGNAL_CONNECT_PEER,
+        type: SignalType.CONNECT_PEER,
         peer_user_id: normalizedPeerUserId,
       });
     },
@@ -252,7 +254,7 @@ const createSignalingClient = (
       }
 
       sendJson(socket, {
-        type: SIGNAL_WEBRTC_SIGNAL,
+        type: SignalType.WEBRTC_SIGNAL,
         peer_user_id: normalizedPeerUserId,
         peer_device_id: normalizedPeerDeviceId,
         signal,
@@ -264,20 +266,20 @@ const createSignalingClient = (
       }
 
       return sendJson(socket, {
-        type: SIGNAL_QUEUE_PEER_ENVELOPE,
+        type: SignalType.QUEUE_PEER_ENVELOPE,
         envelope,
       });
     },
     setPushSubscription: (subscription) => {
       pushSubscription = subscription || null;
       if (pushSubscription && socket?.readyState === WebSocket.OPEN) {
-        sendJson(socket, { type: SIGNAL_PUSH_SUBSCRIBE, subscription: pushSubscription });
+        sendJson(socket, { type: SignalType.PUSH_SUBSCRIBE, subscription: pushSubscription });
       }
     },
     sendPushUnsubscribe: (endpoint) => {
       pushSubscription = null;
       if (endpoint && socket?.readyState === WebSocket.OPEN) {
-        sendJson(socket, { type: SIGNAL_PUSH_UNSUBSCRIBE, endpoint });
+        sendJson(socket, { type: SignalType.PUSH_UNSUBSCRIBE, endpoint });
       }
     },
     destroy: () => {

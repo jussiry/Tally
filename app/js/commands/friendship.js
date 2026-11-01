@@ -12,16 +12,9 @@ via self-mesh sync from another device.
 
 import { normalizeCurrencyAmount } from "../models/data-model.js";
 import { normalizeRelayUrl } from "../utils/relay-url.js";
+import { MessageType } from "../peer/messages.js";
 import {
-  PEER_MESSAGE_TYPE_FRIEND_ACCEPT,
-  PEER_MESSAGE_TYPE_FRIEND_REQUEST,
-} from "../peer/messages.js";
-import {
-  FRIENDSHIP_STATUS_ACCEPTED,
-  FRIENDSHIP_STATUS_DEACTIVATED,
-  FRIENDSHIP_STATUS_PENDING_INCOMING,
-  FRIENDSHIP_STATUS_PENDING_OUTGOING,
-  FRIENDSHIP_STATUS_REJECTED,
+  FriendshipStatus,
   isAcceptedFriendshipStatus,
 } from "../utils/friendships.js";
 import { asTrimmedString, hasUser } from "../state-utils.js";
@@ -58,13 +51,13 @@ export const createFriend = async ({ friendId, trustLimit, name, relays }) => {
 
   // A deactivated friend comes back only through a reactivation suggestion
   // (commands/friendship-default.js), from their friend page.
-  if (existingStatus === FRIENDSHIP_STATUS_ACCEPTED || existingStatus === FRIENDSHIP_STATUS_DEACTIVATED) {
+  if (existingStatus === FriendshipStatus.ACCEPTED || existingStatus === FriendshipStatus.DEACTIVATED) {
     return persistAndBuildView(state);
   }
 
   const normalizedTrustLimit = normalizeCurrencyAmount(trustLimit, NaN);
 
-  if (existingStatus === FRIENDSHIP_STATUS_PENDING_INCOMING) {
+  if (existingStatus === FriendshipStatus.PENDING_INCOMING) {
     // Cross-request: the peer already sent us a request; auto-accept.
     // Trust limit must be written on the friend before the accept message
     // is created so the payload carries the correct agreed value.
@@ -75,7 +68,7 @@ export const createFriend = async ({ friendId, trustLimit, name, relays }) => {
     }
     const acceptMsg = await queuePeerMessage(state, {
       toUserId: normalizedFriendId,
-      type: PEER_MESSAGE_TYPE_FRIEND_ACCEPT,
+      type: MessageType.FRIEND_ACCEPT,
       payload: {
         accepter_name: state.user.name,
         trust_credit_limit_eur: friend.trust_credit_limit_eur || 0,
@@ -90,7 +83,7 @@ export const createFriend = async ({ friendId, trustLimit, name, relays }) => {
   // New outgoing friend request.
   const requestMsg = await queuePeerMessage(state, {
     toUserId: normalizedFriendId,
-    type: PEER_MESSAGE_TYPE_FRIEND_REQUEST,
+    type: MessageType.FRIEND_REQUEST,
     payload: {
       requester_name: state.user.name,
       suggested_credit_limit_eur:
@@ -137,13 +130,13 @@ export const acceptFriend = async (friendId) => {
   if (isAcceptedFriendshipStatus(friend.friendship_status)) {
     return buildView(state);
   }
-  if (friend.friendship_status !== FRIENDSHIP_STATUS_PENDING_INCOMING) {
+  if (friend.friendship_status !== FriendshipStatus.PENDING_INCOMING) {
     return buildView(state);
   }
 
   const acceptMsg = await queuePeerMessage(state, {
     toUserId: normalizedFriendId,
-    type: PEER_MESSAGE_TYPE_FRIEND_ACCEPT,
+    type: MessageType.FRIEND_ACCEPT,
     payload: {
       accepter_name: state.user.name,
       trust_credit_limit_eur: friend.trust_credit_limit_eur || 0,
@@ -172,10 +165,10 @@ export const rejectFriend = async (friendId) => {
   if (!friend) {
     return loadData();
   }
-  if (friend.friendship_status === FRIENDSHIP_STATUS_REJECTED) {
+  if (friend.friendship_status === FriendshipStatus.REJECTED) {
     return buildView(state);
   }
-  if (friend.friendship_status !== FRIENDSHIP_STATUS_PENDING_INCOMING) {
+  if (friend.friendship_status !== FriendshipStatus.PENDING_INCOMING) {
     return buildView(state);
   }
 
@@ -204,7 +197,7 @@ export const removeFriendRequest = async (friendId) => {
   if (!friend) {
     return loadData();
   }
-  if (friend.friendship_status !== FRIENDSHIP_STATUS_PENDING_OUTGOING) {
+  if (friend.friendship_status !== FriendshipStatus.PENDING_OUTGOING) {
     return buildView(state);
   }
 

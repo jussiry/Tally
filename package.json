@@ -8,7 +8,7 @@
     "dev": "concurrently --kill-others-on-fail --names build,server --prefix-colors blue,green \"npm:build:watch\" \"nodemon --watch server --ext js,cjs,json server/server.js\"",
     "dev:design": "node design/scripts/serve.mjs 4000",
     "devAll": "concurrently --kill-others-on-fail --names app,grapheditor,design,web --prefix-colors blue,magenta,cyan,yellow \"PORT=3000 npm run dev\" \"PORT=8088 npm --prefix GraphEditor run dev\" \"PORT=4000 npm run dev:design\" \"npm run build:web && PORT=3001 npx serve web -l 3001\"",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.checkjs.json",
     "test:e2e:two-client": "node tests/two-client-e2e/run.cjs",
     "test:e2e:friend-request-online": "node tests/two-client-e2e/run.cjs --scenario friend-request-online",
     "test:e2e:reload-reconnect": "node tests/two-client-e2e/run.cjs --scenario reload-reconnect",

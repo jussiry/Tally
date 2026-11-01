@@ -38,6 +38,7 @@ const ensureContainer = () => {
   return containerEl;
 };
 
+/** @param {{ text?: string, hash?: string, friendId?: string }} [notification] */
 export const showNotification = ({ text, hash = "" } = {}) => {
   if (!text) return;
 

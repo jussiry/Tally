@@ -34,21 +34,7 @@ import {
 import { formatCurrency } from "../ui/format.js";
 import { queuePeerMessage } from "./outbox.js";
 import { shareOsNotifyTypesWith } from "../notify/notification-prefs.js";
-import {
-  PEER_MESSAGE_TYPE_TRUST_LIMIT_SUGGESTION,
-  PEER_MESSAGE_TYPE_FRIEND_ACCEPT,
-  PEER_MESSAGE_TYPE_FRIEND_REJECT,
-  PEER_MESSAGE_TYPE_FRIEND_REQUEST,
-  PEER_MESSAGE_TYPE_FRIENDSHIP_DEFAULT,
-  PEER_MESSAGE_TYPE_NAME_CHANGED,
-  PEER_MESSAGE_TYPE_NOTIFICATION_PREFS,
-  PEER_MESSAGE_TYPE_PAYMENT_REQUEST,
-  PEER_MESSAGE_TYPE_PAYMENT_REQUEST_RESPONSE,
-  PEER_MESSAGE_TYPE_PAYMENT_REQUEST_CANCEL,
-  PEER_MESSAGE_TYPE_REACTIVATION_REQUEST,
-  PEER_MESSAGE_TYPE_REACTIVATION_RESPONSE,
-  PEER_MESSAGE_TYPE_TRANSACTION_CREATED,
-} from "./messages.js";
+import { MessageType } from "./messages.js";
 import {
   deriveTallyFromLedger,
   mergeVerifiedEntries,
@@ -56,11 +42,7 @@ import {
 } from "../ledger.js";
 import { asTrimmedString, createId } from "../state-utils.js";
 import {
-  FRIENDSHIP_STATUS_ACCEPTED,
-  FRIENDSHIP_STATUS_DEACTIVATED,
-  FRIENDSHIP_STATUS_PENDING_INCOMING,
-  FRIENDSHIP_STATUS_PENDING_OUTGOING,
-  FRIENDSHIP_STATUS_REJECTED,
+  FriendshipStatus,
   PENDING_CREDIT_LIMIT_LOWERED,
   isAcceptedFriendshipStatus,
   isDeactivatedFriendshipStatus,
@@ -97,13 +79,13 @@ const applyInboundFriendRequest = async (state, entry) => {
     asTrimmedString(entry.payload?.requester_name) || entry.from_user_id;
   const existingFriend = getFriend(state, entry.from_user_id);
 
-  if (existingFriend?.friendship_status === FRIENDSHIP_STATUS_PENDING_OUTGOING) {
-    existingFriend.friendship_status = FRIENDSHIP_STATUS_ACCEPTED;
+  if (existingFriend?.friendship_status === FriendshipStatus.PENDING_OUTGOING) {
+    existingFriend.friendship_status = FriendshipStatus.ACCEPTED;
     existingFriend.person_name = requesterName;
     ensureContact(state, entry.from_user_id, requesterName);
     await queuePeerMessage(state, {
       toUserId: entry.from_user_id,
-      type: PEER_MESSAGE_TYPE_FRIEND_ACCEPT,
+      type: MessageType.FRIEND_ACCEPT,
       payload: {
         accepter_name: state.user.name,
       },
@@ -121,7 +103,7 @@ const applyInboundFriendRequest = async (state, entry) => {
     return null;
   }
 
-  if (existingFriend?.friendship_status === FRIENDSHIP_STATUS_PENDING_INCOMING) {
+  if (existingFriend?.friendship_status === FriendshipStatus.PENDING_INCOMING) {
     return null;
   }
 
@@ -130,7 +112,7 @@ const applyInboundFriendRequest = async (state, entry) => {
     entry.from_user_id,
     requesterName,
     {
-      friendshipStatus: FRIENDSHIP_STATUS_PENDING_INCOMING,
+      friendshipStatus: FriendshipStatus.PENDING_INCOMING,
     }
   );
   if (!friend) {
@@ -143,7 +125,7 @@ const applyInboundFriendRequest = async (state, entry) => {
     friend.trust_credit_limit_eur = suggestedTrustLimit;
   }
 
-  friend.friendship_status = FRIENDSHIP_STATUS_PENDING_INCOMING;
+  friend.friendship_status = FriendshipStatus.PENDING_INCOMING;
   friend.person_name = requesterName;
   return friendNotification(`Friend request from ${requesterName}`, entry.from_user_id);
 };
@@ -161,20 +143,20 @@ const applyInboundFriendAccept = async (state, entry) => {
     // Since they could only encrypt this message to us via ECDH (proving prior
     // relationship), trust it and re-establish the connection.
     friend = ensureFriend(state, entry.from_user_id, accepterName, {
-      friendshipStatus: FRIENDSHIP_STATUS_ACCEPTED,
+      friendshipStatus: FriendshipStatus.ACCEPTED,
     });
     if (!friend) return null;
     ensureContactBackLink(state, entry.from_user_id, accepterName);
   }
   if (
-    friend.friendship_status === FRIENDSHIP_STATUS_REJECTED ||
+    friend.friendship_status === FriendshipStatus.REJECTED ||
     isDeactivatedFriendshipStatus(friend.friendship_status)
   ) {
     return null;
   }
 
   const wasAccepted = !isRecovery && isAcceptedFriendshipStatus(friend.friendship_status);
-  friend.friendship_status = FRIENDSHIP_STATUS_ACCEPTED;
+  friend.friendship_status = FriendshipStatus.ACCEPTED;
   friend.person_name = accepterName;
   ensureContact(state, entry.from_user_id, accepterName);
 
@@ -441,7 +423,7 @@ const applyInboundReactivationRequest = async (state, entry) => {
   if (!friend) {
     const requesterName = asTrimmedString(entry.payload?.requester_name) || requesterId;
     friend = ensureFriend(state, requesterId, requesterName, {
-      friendshipStatus: FRIENDSHIP_STATUS_DEACTIVATED,
+      friendshipStatus: FriendshipStatus.DEACTIVATED,
     });
     if (!friend) return null;
     ensureContactBackLink(state, requesterId, requesterName);
@@ -454,7 +436,7 @@ const applyInboundReactivationRequest = async (state, entry) => {
   // this side never applied (e.g. one sent while the default was in flight).
   const addedRecords = added > 0 && history.some(
     (record) =>
-      record.type === PEER_MESSAGE_TYPE_TRANSACTION_CREATED &&
+      record.type === MessageType.TRANSACTION_CREATED &&
       !friend.recent_transactions.some(
         (tx) => tx.id === (asTrimmedString(record.payload?.transaction_id) || record.id)
       )
@@ -472,7 +454,7 @@ const applyInboundReactivationRequest = async (state, entry) => {
 const hasOwnReactivationRequest = (state, friendId, requestId) =>
   state.ledger.some(
     (entry) =>
-      entry.type === PEER_MESSAGE_TYPE_REACTIVATION_REQUEST &&
+      entry.type === MessageType.REACTIVATION_REQUEST &&
       entry.from_user_id === state.user.id &&
       entry.to_user_id === friendId &&
       entry.payload?.request_id === requestId
@@ -488,7 +470,7 @@ const applyInboundReactivationResponse = async (state, entry) => {
   if (entry.payload?.accepted !== true) {
     return friendNotification(`${displayName} declined reactivating your friendship`, entry.from_user_id);
   }
-  friend.friendship_status = FRIENDSHIP_STATUS_ACCEPTED;
+  friend.friendship_status = FriendshipStatus.ACCEPTED;
   await shareOsNotifyTypesWith(state, entry.from_user_id);
   return friendNotification(
     `${displayName} accepted — your friendship is active again`,
@@ -514,31 +496,31 @@ const createInboundProcessingResult = (view, acknowledgeResult = null) => {
  */
 export const routeInboundEntry = async (state, entry) => {
   switch (entry.type) {
-    case PEER_MESSAGE_TYPE_FRIEND_REQUEST:
+    case MessageType.FRIEND_REQUEST:
       return await applyInboundFriendRequest(state, entry);
-    case PEER_MESSAGE_TYPE_FRIEND_ACCEPT:
+    case MessageType.FRIEND_ACCEPT:
       return await applyInboundFriendAccept(state, entry);
-    case PEER_MESSAGE_TYPE_FRIEND_REJECT:
+    case MessageType.FRIEND_REJECT:
       return await applyInboundFriendReject(state, entry);
-    case PEER_MESSAGE_TYPE_TRUST_LIMIT_SUGGESTION:
+    case MessageType.TRUST_LIMIT_SUGGESTION:
       return applyInboundTrustLimitSuggestion(state, entry);
-    case PEER_MESSAGE_TYPE_PAYMENT_REQUEST:
+    case MessageType.PAYMENT_REQUEST:
       return applyInboundPaymentRequest(state, entry);
-    case PEER_MESSAGE_TYPE_PAYMENT_REQUEST_RESPONSE:
+    case MessageType.PAYMENT_REQUEST_RESPONSE:
       return applyInboundPaymentRequestResponse(state, entry);
-    case PEER_MESSAGE_TYPE_PAYMENT_REQUEST_CANCEL:
+    case MessageType.PAYMENT_REQUEST_CANCEL:
       return applyInboundPaymentRequestCancel(state, entry);
-    case PEER_MESSAGE_TYPE_TRANSACTION_CREATED:
+    case MessageType.TRANSACTION_CREATED:
       return applyInboundTransactionCreated(state, entry);
-    case PEER_MESSAGE_TYPE_NAME_CHANGED:
+    case MessageType.NAME_CHANGED:
       return applyInboundNameChanged(state, entry);
-    case PEER_MESSAGE_TYPE_NOTIFICATION_PREFS:
+    case MessageType.NOTIFICATION_PREFS:
       return applyInboundNotificationPrefs(state, entry);
-    case PEER_MESSAGE_TYPE_FRIENDSHIP_DEFAULT:
+    case MessageType.FRIENDSHIP_DEFAULT:
       return applyInboundFriendshipDefault(state, entry);
-    case PEER_MESSAGE_TYPE_REACTIVATION_REQUEST:
+    case MessageType.REACTIVATION_REQUEST:
       return await applyInboundReactivationRequest(state, entry);
-    case PEER_MESSAGE_TYPE_REACTIVATION_RESPONSE:
+    case MessageType.REACTIVATION_RESPONSE:
       return await applyInboundReactivationResponse(state, entry);
     default:
       warnIllegalPeerEntry(entry);
@@ -566,7 +548,7 @@ const applyOutboundFriendRequest = (state, entry) => {
   // an already-accepted or already-pending connection.
   if (!getFriend(state, toId)) {
     ensureFriend(state, toId, toId, {
-      friendshipStatus: FRIENDSHIP_STATUS_PENDING_OUTGOING,
+      friendshipStatus: FriendshipStatus.PENDING_OUTGOING,
     });
     return true;
   }
@@ -581,14 +563,14 @@ const applyOutboundFriendAccept = (state, entry) => {
   if (!friend) {
     // No prior friend on this device — create it as accepted.
     friend = ensureFriend(state, toId, toId, {
-      friendshipStatus: FRIENDSHIP_STATUS_ACCEPTED,
+      friendshipStatus: FriendshipStatus.ACCEPTED,
     });
     changed = !!friend;
   } else if (isDeactivatedFriendshipStatus(friend.friendship_status)) {
     // An old accept replayed by sync must not undo a later default.
     return false;
-  } else if (friend.friendship_status !== FRIENDSHIP_STATUS_ACCEPTED) {
-    friend.friendship_status = FRIENDSHIP_STATUS_ACCEPTED;
+  } else if (friend.friendship_status !== FriendshipStatus.ACCEPTED) {
+    friend.friendship_status = FriendshipStatus.ACCEPTED;
     changed = true;
   }
   // Restore the trust limit that was agreed to (echoed back in the accept payload).
@@ -691,7 +673,7 @@ const applyOutboundReactivationResponse = (state, entry) => {
   if (entry.payload?.accepted !== true) return false;
   const friend = getFriend(state, asTrimmedString(entry.to_user_id));
   if (!friend || !isDeactivatedFriendshipStatus(friend.friendship_status)) return false;
-  friend.friendship_status = FRIENDSHIP_STATUS_ACCEPTED;
+  friend.friendship_status = FriendshipStatus.ACCEPTED;
   return true;
 };
 
@@ -708,22 +690,22 @@ export const routeOutboundEntry = (state, entry) => {
   if (!toId || toId === state.user.id) return false;
 
   switch (entry.type) {
-    case PEER_MESSAGE_TYPE_FRIEND_REQUEST:
+    case MessageType.FRIEND_REQUEST:
       return applyOutboundFriendRequest(state, entry);
-    case PEER_MESSAGE_TYPE_FRIEND_ACCEPT:
+    case MessageType.FRIEND_ACCEPT:
       return applyOutboundFriendAccept(state, entry);
-    case PEER_MESSAGE_TYPE_FRIEND_REJECT:
+    case MessageType.FRIEND_REJECT:
       return applyOutboundFriendReject(state, entry);
-    case PEER_MESSAGE_TYPE_TRANSACTION_CREATED:
+    case MessageType.TRANSACTION_CREATED:
       return applyOutboundTransactionCreated(state, entry);
     // Payment requests, responses and cancels need no case: their open/closed
     // state is derived from the ledger, so there is nothing to mutate.
-    case PEER_MESSAGE_TYPE_TRUST_LIMIT_SUGGESTION:
+    case MessageType.TRUST_LIMIT_SUGGESTION:
       return applyOutboundCreditLimitSuggestion(state, entry);
-    case PEER_MESSAGE_TYPE_FRIENDSHIP_DEFAULT:
+    case MessageType.FRIENDSHIP_DEFAULT:
       return applyOutboundFriendshipDefault(state, entry);
     // A reactivation request changes nothing until it is answered.
-    case PEER_MESSAGE_TYPE_REACTIVATION_RESPONSE:
+    case MessageType.REACTIVATION_RESPONSE:
       return applyOutboundReactivationResponse(state, entry);
     default:
       return false;

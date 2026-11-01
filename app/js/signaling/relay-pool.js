@@ -41,9 +41,7 @@ the next reconnect attempt.
 import { createSignalingClient } from "./socket-client.js";
 import { normalizeRelayUrl } from "../utils/relay-url.js";
 import {
-  RELAY_STATUS_CONNECTED,
-  RELAY_STATUS_DISCONNECTED,
-  RELAY_STATUS_PENDING,
+  RelayStatus,
   clearRelayStatus,
   setRelayStatus,
 } from "./relay-status-registry.js";
@@ -143,7 +141,7 @@ export const createRelayPool = ({
       drained: false,
     };
     entries.set(url, entry);
-    setRelayStatus(url, RELAY_STATUS_PENDING);
+    setRelayStatus(url, RelayStatus.PENDING);
 
     entry.client = createSignalingClient({
       url, // see socket-client change: optional override
@@ -174,7 +172,7 @@ export const createRelayPool = ({
       onSessionReady: () => {
         entry.ready = true;
         entry.drained = false;
-        setRelayStatus(url, RELAY_STATUS_CONNECTED);
+        setRelayStatus(url, RelayStatus.CONNECTED);
         lastEmittedAllDrained = false;
         if (typeof onSessionReady === "function") onSessionReady();
       },
@@ -185,7 +183,7 @@ export const createRelayPool = ({
       onSocketClose: () => {
         entry.ready = false;
         entry.drained = false;
-        setRelayStatus(url, RELAY_STATUS_DISCONNECTED);
+        setRelayStatus(url, RelayStatus.DISCONNECTED);
         purgeRelayFromPresence(url);
         reconsiderAllDrained();
       },

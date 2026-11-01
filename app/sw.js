@@ -1,3 +1,5 @@
+// @ts-nocheck — a service worker: its globals (self, clients, event types) are not
+// the page's, and one type check cannot hold both, so the JS check skips this file.
 /*
 Tally service worker — gives the app an installable, offline-capable shell.
 

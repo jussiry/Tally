@@ -19,12 +19,8 @@ peer-helper (tests/peer-helper/) to test multi-user interactions.
 */
 
 import { DATA_MODEL_VERSION, createLedgerEntryModel } from "../models/data-model.js";
-import { PEER_MESSAGE_TYPE_PAYMENT_REQUEST } from "../peer/messages.js";
-import {
-  FRIENDSHIP_STATUS_ACCEPTED,
-  FRIENDSHIP_STATUS_PENDING_INCOMING,
-  FRIENDSHIP_STATUS_PENDING_OUTGOING,
-} from "../utils/friendships.js";
+import { MessageType } from "../peer/messages.js";
+import { FriendshipStatus } from "../utils/friendships.js";
 import { clearAppState, loadAppState, saveAppState } from "../storage/indexeddb.js";
 
 const SEED_PARAM = "seed";
@@ -70,7 +66,7 @@ const CAROL = {
 const buildBobPaymentRequestEntry = (createdAt) =>
   createLedgerEntryModel({
     id: "peer-seed-pr-1",
-    type: PEER_MESSAGE_TYPE_PAYMENT_REQUEST,
+    type: MessageType.PAYMENT_REQUEST,
     from_user_id: BOB.publicKeyNpub,
     to_user_id: ALICE.publicKeyNpub,
     timestamp: createdAt,
@@ -96,7 +92,7 @@ const buildAliceState = () => {
         {
           person_id: BOB.publicKeyNpub,
           person_name: BOB.name,
-          friendship_status: FRIENDSHIP_STATUS_ACCEPTED,
+          friendship_status: FriendshipStatus.ACCEPTED,
           debt_eur: 42,
           trust_credit_limit_eur: 200,
           recent_transactions: [
@@ -107,7 +103,7 @@ const buildAliceState = () => {
         {
           person_id: CAROL.publicKeyNpub,
           person_name: CAROL.name,
-          friendship_status: FRIENDSHIP_STATUS_PENDING_INCOMING,
+          friendship_status: FriendshipStatus.PENDING_INCOMING,
           debt_eur: 0,
           trust_credit_limit_eur: 0,
           recent_transactions: [],
@@ -143,7 +139,7 @@ const buildBobState = () => {
         {
           person_id: ALICE.publicKeyNpub,
           person_name: ALICE.name,
-          friendship_status: FRIENDSHIP_STATUS_ACCEPTED,
+          friendship_status: FriendshipStatus.ACCEPTED,
           debt_eur: -42,
           trust_credit_limit_eur: 200,
           recent_transactions: [
@@ -154,7 +150,7 @@ const buildBobState = () => {
         {
           person_id: CAROL.publicKeyNpub,
           person_name: CAROL.name,
-          friendship_status: FRIENDSHIP_STATUS_ACCEPTED,
+          friendship_status: FriendshipStatus.ACCEPTED,
           debt_eur: 0,
           trust_credit_limit_eur: 100,
           recent_transactions: [],
@@ -189,7 +185,7 @@ const buildCarolState = () => {
         {
           person_id: ALICE.publicKeyNpub,
           person_name: ALICE.name,
-          friendship_status: FRIENDSHIP_STATUS_PENDING_OUTGOING,
+          friendship_status: FriendshipStatus.PENDING_OUTGOING,
           debt_eur: 0,
           trust_credit_limit_eur: 0,
           recent_transactions: [],
@@ -198,7 +194,7 @@ const buildCarolState = () => {
         {
           person_id: BOB.publicKeyNpub,
           person_name: BOB.name,
-          friendship_status: FRIENDSHIP_STATUS_ACCEPTED,
+          friendship_status: FriendshipStatus.ACCEPTED,
           debt_eur: 0,
           trust_credit_limit_eur: 100,
           recent_transactions: [],

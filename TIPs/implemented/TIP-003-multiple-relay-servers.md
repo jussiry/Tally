@@ -103,7 +103,7 @@ If a friend disconnects on A, the pool receives a `peer_disconnect` from A — b
 
 For an offline recipient: send `queue_peer_envelope` to every connected relay. Cost: `N × envelope_size` extra storage across N relays; envelopes are ~1–2 KB and already capped at 500 per recipient per relay. Benefit: delivery survives the recipient choosing any one of the queued relays first.
 
-The recipient receives the same envelope from each of their relays that happens to overlap with a sender relay. `processed_peer_message_ids` dedupes. Receipts (`PEER_MESSAGE_TYPE_RECEIVED`) are themselves envelopes, so the same multi-relay path applies.
+The recipient receives the same envelope from each of their relays that happens to overlap with a sender relay. `processed_peer_message_ids` dedupes. Receipts (`MessageType.RECEIVED`) are themselves envelopes, so the same multi-relay path applies.
 
 Cleanup after delivery: each relay independently drops its copy once the recipient connects to that relay. Relays the recipient never connects to hold the envelope until the 500-cap evicts it. Acceptable.
 
@@ -216,7 +216,7 @@ Already handled by `processed_peer_message_ids`. No new attack surface.
 
 ### Receipts and outbox cleanup
 
-`PEER_MESSAGE_TYPE_RECEIVED` receipts flow back through every relay too. Sender's outbox removal triggers on first valid receipt and is idempotent.
+`MessageType.RECEIVED` receipts flow back through every relay too. Sender's outbox removal triggers on first valid receipt and is idempotent.
 
 ### Origin restriction on `/ws`
 

@@ -51,7 +51,7 @@
 <p><strong>Recommendation: ask every relay, track per-relay presence, treat the union as truth.</strong></p>
 <h3>4. Queue offline envelopes on every relay</h3>
 <p>For an offline recipient: send <code>queue_peer_envelope</code> to every connected relay. Cost: <code>N × envelope_size</code> extra storage across N relays; envelopes are ~1–2 KB and already capped at 500 per recipient per relay. Benefit: delivery survives the recipient choosing any one of the queued relays first.</p>
-<p>The recipient receives the same envelope from each of their relays that happens to overlap with a sender relay. <code>processed_peer_message_ids</code> dedupes. Receipts (<code>PEER_MESSAGE_TYPE_RECEIVED</code>) are themselves envelopes, so the same multi-relay path applies.</p>
+<p>The recipient receives the same envelope from each of their relays that happens to overlap with a sender relay. <code>processed_peer_message_ids</code> dedupes. Receipts (<code>MessageType.RECEIVED</code>) are themselves envelopes, so the same multi-relay path applies.</p>
 <p>Cleanup after delivery: each relay independently drops its copy once the recipient connects to that relay. Relays the recipient never connects to hold the envelope until the 500-cap evicts it. Acceptable.</p>
 <p><strong>Recommendation: queue on every connected relay.</strong></p>
 <h3>5. WebRTC signalling</h3>
@@ -94,7 +94,7 @@
 <h3>Same envelope through multiple relays</h3>
 <p>Already handled by <code>processed_peer_message_ids</code>. No new attack surface.</p>
 <h3>Receipts and outbox cleanup</h3>
-<p><code>PEER_MESSAGE_TYPE_RECEIVED</code> receipts flow back through every relay too. Sender's outbox removal triggers on first valid receipt and is idempotent.</p>
+<p><code>MessageType.RECEIVED</code> receipts flow back through every relay too. Sender's outbox removal triggers on first valid receipt and is idempotent.</p>
 <h3>Origin restriction on <code>/ws</code></h3>
 <p>Currently absent (any origin can open the WebSocket). Secondary relays may want to apply origin restrictions to mitigate CSRF-style abuse from third-party pages. Worth noting but orthogonal to this TIP.</p>
 <hr />

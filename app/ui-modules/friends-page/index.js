@@ -9,10 +9,7 @@ import { formatCurrency, formatSigned } from "../../js/ui/format.js";
 import { getConnectedPeerIds, getServerPresentPeerIds } from "../../js/peer/status.js";
 import { setFriendIconStatus } from "../components/friend-icon.js";
 import {
-  FRIENDSHIP_STATUS_ACCEPTED,
-  FRIENDSHIP_STATUS_PENDING_INCOMING,
-  FRIENDSHIP_STATUS_PENDING_OUTGOING,
-  FRIENDSHIP_STATUS_REJECTED,
+  FriendshipStatus,
   hasActionableNotification,
   isAcceptedFriendshipStatus,
   isDeactivatedFriendshipStatus,
@@ -26,10 +23,10 @@ const formatTallyWithLimit = (tallyValue, trustLimitValue) => {
 
 const FLOATING_BUTTON_ID = "friends-add-button-floating";
 const FRIENDSHIP_SORT_ORDER = {
-  [FRIENDSHIP_STATUS_ACCEPTED]: 0,
-  [FRIENDSHIP_STATUS_PENDING_INCOMING]: 1,
-  [FRIENDSHIP_STATUS_PENDING_OUTGOING]: 2,
-  [FRIENDSHIP_STATUS_REJECTED]: 3,
+  [FriendshipStatus.ACCEPTED]: 0,
+  [FriendshipStatus.PENDING_INCOMING]: 1,
+  [FriendshipStatus.PENDING_OUTGOING]: 2,
+  [FriendshipStatus.REJECTED]: 3,
 };
 
 const compareFriendNames = (leftFriend, rightFriend) => {
@@ -44,8 +41,8 @@ const getFriendSortWeight = (friend) => {
 
 const getPendingTrustLimit = (friend) => {
   if (
-    friend.friendship_status === FRIENDSHIP_STATUS_PENDING_INCOMING ||
-    friend.friendship_status === FRIENDSHIP_STATUS_PENDING_OUTGOING
+    friend.friendship_status === FriendshipStatus.PENDING_INCOMING ||
+    friend.friendship_status === FriendshipStatus.PENDING_OUTGOING
   ) {
     return friend.trust_credit_limit_eur || 0;
   }
@@ -68,7 +65,7 @@ const getFriendRowState = (friend) => {
     };
   }
 
-  if (friend.friendship_status === FRIENDSHIP_STATUS_PENDING_INCOMING) {
+  if (friend.friendship_status === FriendshipStatus.PENDING_INCOMING) {
     const suggestedTrustLimit = getPendingTrustLimit(friend);
     return {
       amountHtml:
@@ -79,7 +76,7 @@ const getFriendRowState = (friend) => {
     };
   }
 
-  if (friend.friendship_status === FRIENDSHIP_STATUS_PENDING_OUTGOING) {
+  if (friend.friendship_status === FriendshipStatus.PENDING_OUTGOING) {
     const suggestedTrustLimit = getPendingTrustLimit(friend);
     return {
       amountHtml:
@@ -90,7 +87,7 @@ const getFriendRowState = (friend) => {
     };
   }
 
-  if (friend.friendship_status === FRIENDSHIP_STATUS_REJECTED) {
+  if (friend.friendship_status === FriendshipStatus.REJECTED) {
     return {
       amountHtml: "",
       amountClassName: "amount--muted",

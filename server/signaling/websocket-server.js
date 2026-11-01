@@ -69,17 +69,20 @@ const normalizePeerIds = (peerIds) => {
 // lost and the senders' client outboxes will eventually re-queue them.
 // WebSocket message types between client and relay. The other side keeps the
 // same list in app/js/signaling/socket-client.js; change both together.
-const SIGNAL_REGISTER = "register";
-const SIGNAL_PEER_CANDIDATES = "peer_candidates";
-const SIGNAL_CONNECT_PEER = "connect_peer";
-const SIGNAL_WEBRTC_SIGNAL = "webrtc_signal";
-const SIGNAL_QUEUE_PEER_ENVELOPE = "queue_peer_envelope";
-const SIGNAL_PUSH_SUBSCRIBE = "push_subscribe";
-const SIGNAL_PUSH_UNSUBSCRIBE = "push_unsubscribe";
-const SIGNAL_PEER_CONNECT = "peer_connect";
-const SIGNAL_PEER_DISCONNECT = "peer_disconnect";
-const SIGNAL_PEER_ENVELOPE = "peer_envelope";
-const SIGNAL_QUEUE_DRAINED = "queue_drained";
+const SignalType = Object.freeze({
+  REGISTER: "register",
+  PEER_CANDIDATES: "peer_candidates",
+  CONNECT_PEER: "connect_peer",
+  WEBRTC_SIGNAL: "webrtc_signal",
+  QUEUE_PEER_ENVELOPE: "queue_peer_envelope",
+  PUSH_SUBSCRIBE: "push_subscribe",
+  PUSH_UNSUBSCRIBE: "push_unsubscribe",
+  PEER_CONNECT: "peer_connect",
+  PEER_DISCONNECT: "peer_disconnect",
+  PEER_ENVELOPE: "peer_envelope",
+  QUEUE_DRAINED: "queue_drained",
+});
+
 // Web Push payload type; the service worker (app/sw.js) reads only its hint.
 const PUSH_PAYLOAD_PEER_MESSAGE = "peer_message";
 
@@ -164,7 +167,7 @@ const createSignalingServer = (server) => {
 
     Array.from(stored.values()).forEach((envelope) => {
       const delivered = sendJson(client.socket, {
-        type: SIGNAL_PEER_ENVELOPE,
+        type: SignalType.PEER_ENVELOPE,
         envelope,
       });
       if (delivered) {
@@ -198,7 +201,7 @@ const createSignalingServer = (server) => {
     if (recipientUserId === sendingClient.userId) {
       getUserClients(recipientUserId).forEach((recipientClient) => {
         if (recipientClient === sendingClient) return;
-        sendJson(recipientClient.socket, { type: SIGNAL_PEER_ENVELOPE, envelope });
+        sendJson(recipientClient.socket, { type: SignalType.PEER_ENVELOPE, envelope });
       });
       return;
     }
@@ -211,7 +214,7 @@ const createSignalingServer = (server) => {
     let deliveredToAny = false;
     recipientClients.forEach((recipientClient) => {
       const ok = sendJson(recipientClient.socket, {
-        type: SIGNAL_PEER_ENVELOPE,
+        type: SignalType.PEER_ENVELOPE,
         envelope,
       });
       if (ok) deliveredToAny = true;
@@ -252,7 +255,7 @@ const createSignalingServer = (server) => {
 
       if (areClientsEligiblePeers(client, otherClient)) {
         sendJson(otherClient.socket, {
-          type: SIGNAL_PEER_DISCONNECT,
+          type: SignalType.PEER_DISCONNECT,
           peer_user_id: client.userId,
           peer_device_id: client.deviceId,
         });
@@ -323,13 +326,13 @@ const createSignalingServer = (server) => {
 
     const initiatorClient = getInitiatorClient(leftClient, rightClient);
     sendJson(leftClient.socket, {
-      type: SIGNAL_PEER_CONNECT,
+      type: SignalType.PEER_CONNECT,
       peer_user_id: rightClient.userId,
       peer_device_id: rightClient.deviceId,
       initiator: leftClient === initiatorClient,
     });
     sendJson(rightClient.socket, {
-      type: SIGNAL_PEER_CONNECT,
+      type: SignalType.PEER_CONNECT,
       peer_user_id: leftClient.userId,
       peer_device_id: leftClient.deviceId,
       initiator: rightClient === initiatorClient,
@@ -388,7 +391,7 @@ const createSignalingServer = (server) => {
     client.userId = normalizedUserId;
     addUserClient(normalizedUserId, client);
     flushStoredEnvelopes(client);
-    sendJson(client.socket, { type: SIGNAL_QUEUE_DRAINED });
+    sendJson(client.socket, { type: SignalType.QUEUE_DRAINED });
     syncClientPeers(client);
   };
 
@@ -435,7 +438,7 @@ const createSignalingServer = (server) => {
     }
 
     sendJson(targetClient.socket, {
-      type: SIGNAL_WEBRTC_SIGNAL,
+      type: SignalType.WEBRTC_SIGNAL,
       peer_user_id: client.userId,
       peer_device_id: client.deviceId,
       signal,
@@ -472,22 +475,22 @@ const createSignalingServer = (server) => {
         return;
       }
 
-      if (payload.type === SIGNAL_REGISTER) {
+      if (payload.type === SignalType.REGISTER) {
         registerClient(client, payload.user_id, payload.device_id);
         return;
       }
 
-      if (payload.type === SIGNAL_PEER_CANDIDATES) {
+      if (payload.type === SignalType.PEER_CANDIDATES) {
         updatePeerCandidates(client, payload.peer_user_ids);
         return;
       }
 
-      if (payload.type === SIGNAL_CONNECT_PEER) {
+      if (payload.type === SignalType.CONNECT_PEER) {
         handleConnectPeer(client, payload.peer_user_id);
         return;
       }
 
-      if (payload.type === SIGNAL_WEBRTC_SIGNAL) {
+      if (payload.type === SignalType.WEBRTC_SIGNAL) {
         handlePeerSignal(
           client,
           payload.peer_user_id,
@@ -497,12 +500,12 @@ const createSignalingServer = (server) => {
         return;
       }
 
-      if (payload.type === SIGNAL_QUEUE_PEER_ENVELOPE) {
+      if (payload.type === SignalType.QUEUE_PEER_ENVELOPE) {
         handleQueuePeerEnvelope(client, payload.envelope);
         return;
       }
 
-      if (payload.type === SIGNAL_PUSH_SUBSCRIBE) {
+      if (payload.type === SignalType.PUSH_SUBSCRIBE) {
         // Bind the subscription to this user so offline envelopes can wake the
         // device. We require a registered userId so a push can be routed.
         if (client.userId && payload.subscription) {
@@ -511,7 +514,7 @@ const createSignalingServer = (server) => {
         return;
       }
 
-      if (payload.type === SIGNAL_PUSH_UNSUBSCRIBE) {
+      if (payload.type === SignalType.PUSH_UNSUBSCRIBE) {
         const endpoint =
           typeof payload.endpoint === "string" ? payload.endpoint : payload.subscription?.endpoint;
         if (client.userId && endpoint) {

@@ -16,18 +16,10 @@ import {
   hasQueuedPeerMessage,
   queuePeerMessage,
 } from "./peer/outbox.js";
-import {
-  PEER_MESSAGE_TYPE_FRIEND_REJECT,
-  PEER_MESSAGE_TYPE_FRIEND_REQUEST,
-} from "./peer/messages.js";
+import { MessageType } from "./peer/messages.js";
 import { appendLedgerEntryFromMessage } from "./ledger.js";
 import { asTrimmedString, hasUser } from "./state-utils.js";
-import {
-  FRIENDSHIP_STATUS_ACCEPTED,
-  FRIENDSHIP_STATUS_DEACTIVATED,
-  FRIENDSHIP_STATUS_PENDING_INCOMING,
-  FRIENDSHIP_STATUS_PENDING_OUTGOING,
-} from "./utils/friendships.js";
+import { FriendshipStatus } from "./utils/friendships.js";
 
 export const ensureContacts = (state) => {
   if (!state.contacts || typeof state.contacts !== "object") {
@@ -74,7 +66,7 @@ const ensureFriendInternal = (person, friendId, friendName, options = {}) => {
     friend = createFriendModel({
       person_id: normalizedFriendId,
       person_name: normalizedFriendName || normalizedFriendId,
-      friendship_status: options.friendshipStatus || FRIENDSHIP_STATUS_ACCEPTED,
+      friendship_status: options.friendshipStatus || FriendshipStatus.ACCEPTED,
       debt_eur: 0,
       trust_credit_limit_eur: 0,
       recent_transactions: [],
@@ -193,7 +185,7 @@ export const removeFriendRelationshipData = (state, friendId) => {
 // Deactivate a friendship after a default. The records stay for the history
 // view; open suggestions and notices about the friend no longer apply.
 export const disableFriend = (friend) => {
-  friend.friendship_status = FRIENDSHIP_STATUS_DEACTIVATED;
+  friend.friendship_status = FriendshipStatus.DEACTIVATED;
   friend.pending_credit_limit_eur = null;
   friend.pending_credit_limit_is_incoming = null;
   friend.pending_name_change = null;
@@ -221,6 +213,11 @@ export const deleteFriendHistory = (state, friendId, { upTo = "" } = {}) => {
   return state.ledger.length !== before;
 };
 
+/**
+ * @param {object} state
+ * @param {string} friendId
+ * @param {{ direction?: string, displayName?: string, notifyPeer?: boolean, skipLog?: boolean }} [options]
+ */
 export const cancelPendingFriendRequest = async (
   state,
   friendId,
@@ -233,24 +230,24 @@ export const cancelPendingFriendRequest = async (
     return false;
   }
   if (
-    friend.friendship_status !== FRIENDSHIP_STATUS_PENDING_INCOMING &&
-    friend.friendship_status !== FRIENDSHIP_STATUS_PENDING_OUTGOING
+    friend.friendship_status !== FriendshipStatus.PENDING_INCOMING &&
+    friend.friendship_status !== FriendshipStatus.PENDING_OUTGOING
   ) {
     return false;
   }
 
   const hasUnsentOutgoingRequest =
-    friend.friendship_status === FRIENDSHIP_STATUS_PENDING_OUTGOING &&
+    friend.friendship_status === FriendshipStatus.PENDING_OUTGOING &&
     hasQueuedPeerMessage(state, {
       toUserId: normalizedFriendId,
-      type: PEER_MESSAGE_TYPE_FRIEND_REQUEST,
+      type: MessageType.FRIEND_REQUEST,
     });
   removeFriendRelationshipData(state, normalizedFriendId);
   let rejectMessage = null;
   if (notifyPeer && !hasUnsentOutgoingRequest) {
     rejectMessage = await queuePeerMessage(state, {
       toUserId: normalizedFriendId,
-      type: PEER_MESSAGE_TYPE_FRIEND_REJECT,
+      type: MessageType.FRIEND_REJECT,
       payload: {},
     });
   }

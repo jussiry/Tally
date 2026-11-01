@@ -116,7 +116,7 @@ claim_record {
 Friendship is required before any transaction-type record will be accepted (the existing inbound/outbound transaction handlers gate on `isAcceptedFriendshipStatus`). So Phase 2 establishes the friendship **first**, reusing the existing friend-request/accept handshake rather than inventing a new "friendship record". The bearer token doubles as proof that lets the debtor auto-accept without a manual prompt.
 
 5. Friend opens the link, installs/opens Tally, and generates their own keypair `C` (public `C_pub`).
-6. From the link the client knows `s` and the **debtor's public key**. It sends the debtor an ordinary `PEER_MESSAGE_TYPE_FRIEND_REQUEST`, ECDH-encrypted to the debtor's key, carrying `s` as proof that a claim already binds them:
+6. From the link the client knows `s` and the **debtor's public key**. It sends the debtor an ordinary `MessageType.FRIEND_REQUEST`, ECDH-encrypted to the debtor's key, carrying `s` as proof that a claim already binds them:
 
 ```
 friend_request {
@@ -133,7 +133,7 @@ friend_request {
 
    Encryption needs only the debtor's public key (pure ECDH), which the email provided — no prior relationship is required to send this.
 
-7. The debtor receives the request and, in `applyInboundFriendRequest`, adds a branch: look up a local `claim_record` whose `commitment === SHA256(claim_proof)`. If one is found, **auto-accept** the friendship (emit `PEER_MESSAGE_TYPE_FRIEND_ACCEPT`) with no user prompt — analogous to the existing cross-request (`PENDING_OUTGOING`) and ECDH-recovery auto-accept paths. The debtor notes which `claim_record` this `C_pub` is now associated with. If no claim matches the proof, fall back to the normal manual friend-request flow.
+7. The debtor receives the request and, in `applyInboundFriendRequest`, adds a branch: look up a local `claim_record` whose `commitment === SHA256(claim_proof)`. If one is found, **auto-accept** the friendship (emit `MessageType.FRIEND_ACCEPT`) with no user prompt — analogous to the existing cross-request (`PENDING_OUTGOING`) and ECDH-recovery auto-accept paths. The debtor notes which `claim_record` this `C_pub` is now associated with. If no claim matches the proof, fall back to the normal manual friend-request flow.
 
    Matching is by **commitment, not identity**: the claimant's key is brand new and unknown to the debtor, so `SHA256(s) === claim.commitment` is the join key that ties the request to the right provisional claim.
 
@@ -240,7 +240,7 @@ The final `transaction_created` is then created and signed by the debtor followi
 ## Implementation Notes
 
 - New ledger record types: `offline_claim`, `offline_claim_binding`. (Possibly `offline_claim_revoked` per Open Q3.)
-- **Reuse**, do not replace, the existing friendship handshake (`PEER_MESSAGE_TYPE_FRIEND_REQUEST` / `PEER_MESSAGE_TYPE_FRIEND_ACCEPT`). No new "friendship record" type.
+- **Reuse**, do not replace, the existing friendship handshake (`MessageType.FRIEND_REQUEST` / `MessageType.FRIEND_ACCEPT`). No new "friendship record" type.
 - New command (analogous to `createTransaction`): `createOfflineClaim({ email, amount, note })` — generates `s`, computes `h` and `placeholder_id`, signs and stores the claim record, triggers the email.
 - Claim-link handler on registration: parse `s` + debtor pubkey; send a `friend_request` carrying `claim_proof: s` (ECDH-encrypted to the debtor); on `friend_accept`, send the signed `binding_record`; all over normal peer transport.
 - New branch in `applyInboundFriendRequest` (`peer/handlers.js`): if `payload.claim_proof` hashes to the `commitment` of a local unfinalised `claim_record`, **auto-accept** (mirror the existing `PENDING_OUTGOING` cross-request and ECDH-recovery auto-accept paths) and remember the claim↔`C_pub` association.

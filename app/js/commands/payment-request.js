@@ -15,15 +15,8 @@ consistent. That transaction goes through routeOutboundEntry like any other.
 @category command
 */
 
-import {
-  normalizeCurrencyAmount,
-} from "../models/data-model.js";
-import {
-  PEER_MESSAGE_TYPE_PAYMENT_REQUEST,
-  PEER_MESSAGE_TYPE_PAYMENT_REQUEST_CANCEL,
-  PEER_MESSAGE_TYPE_PAYMENT_REQUEST_RESPONSE,
-  PEER_MESSAGE_TYPE_TRANSACTION_CREATED,
-} from "../peer/messages.js";
+import { normalizeCurrencyAmount } from "../models/data-model.js";
+import { MessageType } from "../peer/messages.js";
 import { isAcceptedFriendshipStatus } from "../utils/friendships.js";
 import { asTrimmedString, createId, hasUser } from "../state-utils.js";
 import {
@@ -58,7 +51,7 @@ export const requestPayment = async ({ friendId, amount, message }) => {
 
   const prMsg = await queuePeerMessage(state, {
     toUserId: normalizedFriendId,
-    type: PEER_MESSAGE_TYPE_PAYMENT_REQUEST,
+    type: MessageType.PAYMENT_REQUEST,
     payload: {
       request_id: requestId,
       amount_eur: normalizedAmount,
@@ -96,7 +89,7 @@ export const respondToPaymentRequest = async (friendId, requestId, accepted) => 
 
   const responseMsg = await queuePeerMessage(state, {
     toUserId,
-    type: PEER_MESSAGE_TYPE_PAYMENT_REQUEST_RESPONSE,
+    type: MessageType.PAYMENT_REQUEST_RESPONSE,
     payload: {
       request_id: request.id,
       accepted,
@@ -111,7 +104,7 @@ export const respondToPaymentRequest = async (friendId, requestId, accepted) => 
 
     const txMsg = await queuePeerMessage(state, {
       toUserId,
-      type: PEER_MESSAGE_TYPE_TRANSACTION_CREATED,
+      type: MessageType.TRANSACTION_CREATED,
       payload: {
         transaction_id: transactionId,
         amount_eur: request.amount_eur,
@@ -136,7 +129,7 @@ export const cancelPaymentRequest = async (friendId, requestId) => {
 
   const cancelMsg = await queuePeerMessage(state, {
     toUserId,
-    type: PEER_MESSAGE_TYPE_PAYMENT_REQUEST_CANCEL,
+    type: MessageType.PAYMENT_REQUEST_CANCEL,
     payload: { request_id: request.id },
   });
   appendLedgerEntryFromMessage(state, cancelMsg);

@@ -9,6 +9,10 @@ import { initCheckToggle } from "../components/check-toggle.js";
 import { isValidNcryptsec } from "../../js/crypto/nip49.js";
 import { isNip07Available } from "../../js/crypto/key-provider.js";
 
+/**
+ * @param {any} root
+ * @param {{ onCreateUser?: Function }} [options]
+ */
 export const bindWelcome = (root, { onCreateUser } = {}) => {
   const formElement = root.querySelector('[data-form="welcome"]');
   const nameInput = root.querySelector('[data-bind="welcome-name"]');

@@ -17,9 +17,11 @@ the same pattern (or fold all of them into a single transport-state module).
 
 import { normalizeRelayUrl } from "../utils/relay-url.js";
 
-const RELAY_STATUS_PENDING = "pending";
-const RELAY_STATUS_CONNECTED = "connected";
-const RELAY_STATUS_DISCONNECTED = "disconnected";
+const RelayStatus = Object.freeze({
+  PENDING: "pending",
+  CONNECTED: "connected",
+  DISCONNECTED: "disconnected",
+});
 
 const statuses = new Map(); // normalisedUrl → status
 const listeners = new Set();
@@ -28,13 +30,13 @@ const normaliseKey = (url) => normalizeRelayUrl(url) || url?.trim() || "";
 
 export const getRelayStatus = (url) => {
   const key = normaliseKey(url);
-  return statuses.get(key) || RELAY_STATUS_PENDING;
+  return statuses.get(key) || RelayStatus.PENDING;
 };
 
 // True when at least one relay currently has a live, registered session — i.e.
 // this device is reachable by its peers.
 export const isAnyRelayConnected = () =>
-  Array.from(statuses.values()).includes(RELAY_STATUS_CONNECTED);
+  Array.from(statuses.values()).includes(RelayStatus.CONNECTED);
 
 export const setRelayStatus = (url, status) => {
   const key = normaliseKey(url);
@@ -74,8 +76,4 @@ export const subscribeToRelayStatusChanges = (listener) => {
   return () => listeners.delete(listener);
 };
 
-export {
-  RELAY_STATUS_CONNECTED,
-  RELAY_STATUS_PENDING,
-  RELAY_STATUS_DISCONNECTED,
-};
+export { RelayStatus };

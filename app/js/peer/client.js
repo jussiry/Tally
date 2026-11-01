@@ -54,11 +54,7 @@ import {
 import { subscribeToDataChanges } from "../app-state.js";
 import {
   createPeerReceiptMessage,
-  PEER_MESSAGE_TYPE_PING,
-  PEER_MESSAGE_TYPE_PONG,
-  PEER_MESSAGE_TYPE_RECEIVED,
-  PEER_MESSAGE_TYPE_SYNC_HELLO,
-  PEER_MESSAGE_TYPE_SYNC_DATA,
+  MessageType,
 } from "./messages.js";
 import {
   isPeerEnvelope,
@@ -73,8 +69,7 @@ import {
 } from "../ledger.js";
 import { createRelayPool } from "../signaling/relay-pool.js";
 import {
-  PEER_CLOSE_REASON_SERVER_DISCONNECT,
-  PEER_CLOSE_REASON_STALE_REPLACED,
+  PeerCloseReason,
   createPeerMesh,
 } from "./mesh.js";
 import {
@@ -209,7 +204,7 @@ const createRealtimeClient = () => {
     await sendSyncMessage(
       peerKey,
       { scope },
-      PEER_MESSAGE_TYPE_SYNC_HELLO,
+      MessageType.SYNC_HELLO,
       { known_ids: entries.map((entry) => entry.id) },
       peerUserId,
     );
@@ -235,7 +230,7 @@ const createRealtimeClient = () => {
     await sendSyncMessage(
       peerKey,
       { scope },
-      PEER_MESSAGE_TYPE_SYNC_DATA,
+      MessageType.SYNC_DATA,
       { entries: missing },
       peerUserId,
     );
@@ -383,7 +378,7 @@ const createRealtimeClient = () => {
     ({ peerUserId, peerKey, reason, wasConnected }) => {
       forgetSync(peerKey);
       if (!wasConnected) return;
-      if (reason === PEER_CLOSE_REASON_SERVER_DISCONNECT || reason === PEER_CLOSE_REASON_STALE_REPLACED) return;
+      if (reason === PeerCloseReason.SERVER_DISCONNECT || reason === PeerCloseReason.STALE_REPLACED) return;
       requestPeerConnectionIfNeeded(
         peerUserId,
         "Retrying peer connection after unexpected close"
@@ -678,7 +673,7 @@ const createRealtimeClient = () => {
       await sendSyncMessage(
         peerKey,
         { scope: SCOPE_SELF },
-        PEER_MESSAGE_TYPE_SYNC_DATA,
+        MessageType.SYNC_DATA,
         { entries: freshEntries },
         currentSnapshot.userId,
       );
@@ -788,21 +783,25 @@ const createRealtimeClient = () => {
     }
   };
 
+  /**
+   * @param {object} innerMessage
+   * @param {{ receiptChannelPeerKey?: string, scope?: string, peerKey?: string, peerUserId?: string }} [options]
+   */
   const processInnerPeerMessage = async (
     innerMessage,
     { receiptChannelPeerKey, scope = SCOPE_FRIEND, peerKey, peerUserId } = {}
   ) => {
     switch (innerMessage.type) {
-      case PEER_MESSAGE_TYPE_RECEIVED:
+      case MessageType.RECEIVED:
         await handleReceiptMessage(innerMessage);
         return;
-      case PEER_MESSAGE_TYPE_SYNC_HELLO:
+      case MessageType.SYNC_HELLO:
         await handleSyncHello(peerKey, innerMessage.payload, {
           scope,
           peerUserId: peerUserId || innerMessage.from_user_id,
         });
         return;
-      case PEER_MESSAGE_TYPE_SYNC_DATA:
+      case MessageType.SYNC_DATA:
         await handleSyncData(peerKey, innerMessage.payload, {
           scope,
           peerUserId: peerUserId || innerMessage.from_user_id,
@@ -830,16 +829,16 @@ const createRealtimeClient = () => {
     }
 
     switch (message.type) {
-      case PEER_MESSAGE_TYPE_PING: {
+      case MessageType.PING: {
         logRealtimeEvent(`Ping received (${scope})`);
         const mesh = scope === SCOPE_SELF ? selfMesh : peerMesh;
         mesh.sendControlMessage(peerKey, {
-          type: PEER_MESSAGE_TYPE_PONG,
+          type: MessageType.PONG,
           timestamp: message.timestamp,
         });
         return;
       }
-      case PEER_MESSAGE_TYPE_PONG: {
+      case MessageType.PONG: {
         const sentAt = message.timestamp;
         const roundTripMs = sentAt ? Date.now() - sentAt : null;
         logRealtimeEvent(`Pong received (${scope}, ${roundTripMs}ms RTT)`);
@@ -850,7 +849,7 @@ const createRealtimeClient = () => {
         }
         return;
       }
-      case PEER_MESSAGE_TYPE_RECEIVED:
+      case MessageType.RECEIVED:
         // Plaintext receipt over WebRTC — used as the fast path when both peers
         // have a live data channel. Same handling as a server-delivered receipt.
         await handleReceiptMessage(message);
@@ -911,7 +910,7 @@ const createRealtimeClient = () => {
     // Self-addressed envelopes are the own-device sync fallback. Only sync
     // messages are expected there; each relay delivers its own copy.
     if (innerMessage.from_user_id === currentSnapshot?.userId) {
-      const isSync = [PEER_MESSAGE_TYPE_SYNC_HELLO, PEER_MESSAGE_TYPE_SYNC_DATA]
+      const isSync = [MessageType.SYNC_HELLO, MessageType.SYNC_DATA]
         .includes(innerMessage.type);
       if (!isSync || seenRelaySyncIds.has(innerMessage.id)) return;
       if (seenRelaySyncIds.size >= SEEN_RELAY_SYNC_IDS_LIMIT) seenRelaySyncIds.clear();
@@ -975,7 +974,7 @@ const createRealtimeClient = () => {
     }
 
     peerMesh.sendControlMessage(targetPeerKey, {
-      type: PEER_MESSAGE_TYPE_PING,
+      type: MessageType.PING,
       timestamp: Date.now(),
     });
 
