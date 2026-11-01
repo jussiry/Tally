@@ -418,8 +418,15 @@ const VALUE_RULES: Record<string, (payload: Record<string, unknown>) => boolean>
     Array.isArray(p.history) && isAbsentOrNonNegativeAmount(p.trust_credit_limit_eur),
   [PEER_MESSAGE_TYPE_HISTORY_DELETED]: (p) => typeof p.friend_id === "string" && p.friend_id.length > 0,
   // Not a money value, but readers trust the shape: a list of type names.
+  // `choices`, when present, maps type names to on/off.
   [PEER_MESSAGE_TYPE_NOTIFICATION_PREFS]: (p) =>
-    Array.isArray(p.enabled) && p.enabled.every((type) => typeof type === "string"),
+    Array.isArray(p.enabled) &&
+    p.enabled.every((type) => typeof type === "string") &&
+    (p.choices === undefined ||
+      (typeof p.choices === "object" &&
+        p.choices !== null &&
+        !Array.isArray(p.choices) &&
+        Object.values(p.choices).every((value) => typeof value === "boolean"))),
 };
 
 export const hasValidLedgerValues = (

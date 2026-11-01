@@ -26,7 +26,7 @@
 
 <h3>2.2 Delete history — final for this user</h3>
 <p>On a disabled friend's page, <em>Delete history</em> removes the friend record, contact, queued messages and every ledger entry between the two. A signed, self-addressed <code>friendship_history_deleted</code> entry records the deletion. It is never sent to the friend. Self-sync carries it to the user's other devices, which delete their copies too (<code>bridge.js</code>). Until the friend shows up again, any entry with them dated before the deletion is dropped wherever it comes from, whether self-sync, a replay or the friend (<code>isDeletedHistoryEntry</code> in <code>ledger.ts</code>), so the history can't creep back.</p>
-<p>After this the user cannot restore the friendship. The friend still can, if they kept their copy.</p>
+<p>After this the user cannot restore the friendship. The friend still can, if they kept their copy. While they keep it, a friend request between the two is ignored (§3). Once both sides have deleted their history, nothing is left that refers to the other side except each user's deletion marker. That marker only holds back entries dated before the deletion, so a new friend request works as between strangers and the friendship starts from zero.</p>
 
 <h2>3. Reactivation</h2>
 <p>Either side of a disabled friendship can <em>suggest reactivation</em>. The <code>reactivation_request</code> carries the requester's copy of the shared history, because the recipient may have deleted theirs. Earlier requests are left out of it, so histories never nest.</p>
@@ -34,10 +34,10 @@
 <ul><li>It is between exactly these two users.</li><li>Its values are plausible (<a href="spec-ledger.html">Ledger</a> value rules).</li><li>It carries a valid <a href="glossary.html#authorship">authorship proof</a> by its own author. That author may be either user: the recipient's own records come back signed by the recipient.</li></ul>
 <p>One bad entry rejects the whole suggestion, since a partial history would give a wrong tally. If the recipient had deleted the history, the friend comes back as <em>disabled</em>, with the tally rebuilt from the verified records and an incoming suggestion to <em>Reactivate</em> or <em>Decline</em>.</p>
 <p>A <code>reactivation_response</code> answers it. On acceptance both sides return to <code>accepted</code>, and the records count again. A suggestion is open until a response with its <code>request_id</code> is in the ledger (<code>getOpenReactivationRequests</code>), like <a href="glossary.html#payment-request">payment requests</a>. Suggesting while the friend's own suggestion is open counts as accepting it.</p>
-<p>A disabled friend's fresh <code>friend_request</code>, or an old <code>friend_accept</code> replayed by sync, is ignored. Reactivation is the only way back, so the old tally never revives unannounced.</p>
+<p>While either side keeps the history, a <code>friend_request</code> to or from the disabled friend is ignored, and so is an old <code>friend_accept</code> replayed by sync. Reactivation is the only way back, so the old tally never revives unannounced.</p>
 
 <h2>4. Tests</h2>
-<p><code>tests/two-client-e2e/scenarios/friendship-default.cjs</code> walks the whole flow through the UI. It covers the default with a note, the disabled views, history deletion, a suggestion with a tampered record being rejected, the real suggestion restoring the deleted side, and acceptance. <code>tests/ledger-validation</code> covers the new types' value rules.</p>
+<p><code>tests/two-client-e2e/scenarios/friendship-default.cjs</code> walks the whole flow through the UI. It covers the default with a note, the disabled views, history deletion, a suggestion with a tampered record being rejected, the real suggestion restoring the deleted side, and acceptance. <code>friendship-fresh-start.cjs</code> checks that a friend request is ignored while one side keeps the history, and works from zero once both have deleted it. <code>tests/ledger-validation</code> covers the new types' value rules.</p>
   </main>
   <script src="assets/pages.js"></script>
   <script src="assets/design.js"></script>

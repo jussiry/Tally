@@ -32,6 +32,13 @@ message to every friend (and a self-addressed copy for its own devices); the
 `push_hint` only for enabled types. The relay pushes only envelopes with a
 hint, so it still never learns the event type. A peer with no prefs entry
 (new friend, stranger's friend request, older app) gets the defaults.
+
+The choice is kept per type, and only for types whose setting the user has
+actually set (`payload.choices`, type → on/off). Every other type follows its
+default, so a notification added later starts at its default even for users
+who saved their settings before it existed. The entry also carries the
+resolved `enabled` list, which is all that clients older than per-type
+choices read.
 See TIPs/TIP-005-os-notifications.md.
 
 Keeping this mapping separate from the state-mutation handlers (peer/handlers.js)
@@ -106,16 +113,54 @@ export const normalizeOsNotifyTypes = (types) => {
   return ALL_TYPES.filter((type) => wanted.has(type));
 };
 
-export const sameOsNotifyTypes = (a, b) =>
-  normalizeOsNotifyTypes(a).join(",") === normalizeOsNotifyTypes(b).join(",");
+const DEFAULT_TYPES = new Set(getDefaultOsNotifyTypes());
+
+// The types that existed before choices were stored per type. An older entry
+// holds only an `enabled` list, which set every one of these; newer types are
+// left at their defaults.
+const TYPES_BEFORE_PER_TYPE_CHOICES = ALL_TYPES.filter(
+  (type) =>
+    type !== PEER_MESSAGE_TYPE_FRIENDSHIP_DEFAULT &&
+    type !== PEER_MESSAGE_TYPE_REACTIVATION_REQUEST &&
+    type !== PEER_MESSAGE_TYPE_REACTIVATION_RESPONSE
+);
+
+// Keep only known types with a boolean choice; unknown types from newer peers
+// are ignored.
+export const normalizeOsNotifyChoices = (choices) => {
+  const normalized = {};
+  if (!choices || typeof choices !== "object" || Array.isArray(choices)) return normalized;
+  ALL_TYPES.forEach((type) => {
+    if (typeof choices[type] === "boolean") normalized[type] = choices[type];
+  });
+  return normalized;
+};
+
+// The enabled types for a set of choices: each type as chosen, else its default.
+export const resolveOsNotifyTypes = (choices) => {
+  const normalized = normalizeOsNotifyChoices(choices);
+  return ALL_TYPES.filter((type) =>
+    type in normalized ? normalized[type] : DEFAULT_TYPES.has(type)
+  );
+};
+
+const choicesOfEntry = (entry) => {
+  if (entry.payload?.choices && typeof entry.payload.choices === "object") {
+    return normalizeOsNotifyChoices(entry.payload.choices);
+  }
+  const enabled = new Set(entry.payload.enabled);
+  return Object.fromEntries(
+    TYPES_BEFORE_PER_TYPE_CHOICES.map((type) => [type, enabled.has(type)])
+  );
+};
 
 const entryTime = (entry) => entry?.originated_at || entry?.timestamp || "";
 
-// Latest notification_prefs choice per author, from a ledger. Authors with no
+// Latest notification_prefs choices per author, from a ledger. Authors with no
 // entry are absent; callers fall back to the defaults. In a user's own ledger
 // the only entries by a friend are ones addressed to this user, and entries
 // by the user itself (to friends or self-addressed) all carry the same choice.
-export const collectOsNotifyTypesByAuthor = (ledger) => {
+export const collectOsNotifyChoicesByAuthor = (ledger) => {
   const latest = new Map();
   (Array.isArray(ledger) ? ledger : []).forEach((entry) => {
     if (entry?.type !== PEER_MESSAGE_TYPE_NOTIFICATION_PREFS) return;
@@ -127,14 +172,27 @@ export const collectOsNotifyTypesByAuthor = (ledger) => {
   });
   const byAuthor = {};
   latest.forEach((entry, authorId) => {
-    byAuthor[authorId] = normalizeOsNotifyTypes(entry.payload.enabled);
+    byAuthor[authorId] = choicesOfEntry(entry);
   });
   return byAuthor;
 };
 
-// The OS-notified event types chosen by `authorId`, or the defaults.
+// The enabled types per author, resolved against this client's defaults.
+export const collectOsNotifyTypesByAuthor = (ledger) =>
+  Object.fromEntries(
+    Object.entries(collectOsNotifyChoicesByAuthor(ledger)).map(([authorId, choices]) => [
+      authorId,
+      resolveOsNotifyTypes(choices),
+    ])
+  );
+
+// The settings `authorId` has set ({} when none).
+export const getOsNotifyChoices = (ledger, authorId) =>
+  collectOsNotifyChoicesByAuthor(ledger)[authorId] || {};
+
+// The OS-notified event types chosen by `authorId`, defaults filling the rest.
 export const getOsNotifyTypes = (ledger, authorId) =>
-  collectOsNotifyTypesByAuthor(ledger)[authorId] || getDefaultOsNotifyTypes();
+  resolveOsNotifyTypes(getOsNotifyChoices(ledger, authorId));
 
 const normalizeAmount = (value) => {
   const amount = Number(value);

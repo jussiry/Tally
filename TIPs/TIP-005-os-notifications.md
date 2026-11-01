@@ -65,13 +65,20 @@ quota (Firefox) or a revoked subscription (Safari). So the recipient's service
 worker can't drop unwanted events — the filter has to sit upstream.
 
 The **sender** applies it. The recipient publishes its choice as a
-`notification_prefs` ledger message (`{ enabled: [types] }`) to every
+`notification_prefs` ledger message (`{ choices, enabled }`) to every
 peer-eligible friend, plus a self-addressed copy that self-sync carries to its
 own devices. A sender reads the latest one by the recipient from its own ledger
 (`peerOsNotifyTypes` in the realtime snapshot) and attaches a push hint only for
 enabled types; the relay still pushes only envelopes that carry a hint. A new
 friend gets the choice when the friendship is accepted; a peer with no entry
 (stranger's friend request, older app) is treated as having the defaults.
+
+`choices` holds only the settings the user actually switched (type → on/off);
+every other type follows its default. A notification type added later
+therefore starts at its default even for users who saved before it existed,
+and a changed default reaches everyone who never touched that setting.
+`enabled` is the resolved list, kept for clients that predate `choices`; an
+entry with only `enabled` is read as a choice for each type that existed then.
 
 The relay's view is unchanged: it never learns the event type. Friends do learn
 which events their friend gets notified about.

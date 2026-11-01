@@ -50,6 +50,8 @@ check("name_changed accepted", hasValidLedgerValues(entry("name_changed", { name
 check("notification_prefs list accepted", hasValidLedgerValues(entry("notification_prefs", { enabled: ["payment_request"] })), true);
 check("notification_prefs empty list accepted", hasValidLedgerValues(entry("notification_prefs", { enabled: [] })), true);
 check("notification_prefs missing list rejected", hasValidLedgerValues(entry("notification_prefs", {})), false);
+check("notification_prefs with choices accepted", hasValidLedgerValues(entry("notification_prefs", { enabled: [], choices: { name_changed: true } })), true);
+check("notification_prefs non-boolean choice rejected", hasValidLedgerValues(entry("notification_prefs", { enabled: [], choices: { name_changed: "yes" } })), false);
 check("notification_prefs non-string rejected", hasValidLedgerValues(entry("notification_prefs", { enabled: [1] })), false);
 
 // Friendship default: the tally at default time is a number; the note optional text.

@@ -3,8 +3,9 @@ State helpers that publish the user's OS-notification choice (which event types
 should reach them as OS notifications) to the peers that need it.
 
 The choice lives only in the ledger, as `notification_prefs` entries; the
-latest one by an author wins (see collectOsNotifyTypesByAuthor in
-notification-policy.js). Publishing therefore writes:
+latest one by an author wins (see collectOsNotifyChoicesByAuthor in
+notification-policy.js). Each entry holds only the settings the user set;
+the rest follow their defaults. Publishing therefore writes:
 
   - one entry to every peer-eligible friend, so their client attaches push
     hints only for the types this user enabled, and
@@ -28,27 +29,34 @@ import { appendLedgerEntryFromMessage } from "../ledger.js";
 import { createPeerMessageModel } from "../models/data-model.js";
 import { isPeerEligibleFriendshipStatus } from "../utils/friendships.js";
 import { createId, hasUser } from "../state-utils.js";
-import { collectOsNotifyTypesByAuthor, normalizeOsNotifyTypes } from "./notification-policy.js";
+import {
+  collectOsNotifyChoicesByAuthor,
+  normalizeOsNotifyChoices,
+  resolveOsNotifyTypes,
+} from "./notification-policy.js";
 
-const queuePrefsTo = async (state, friendId, enabled) => {
+// Only the settings the user set, plus the resolved list for older clients.
+const prefsPayload = (choices) => ({ choices, enabled: resolveOsNotifyTypes(choices) });
+
+const queuePrefsTo = async (state, friendId, payload) => {
   const message = await queuePeerMessage(state, {
     toUserId: friendId,
     type: PEER_MESSAGE_TYPE_NOTIFICATION_PREFS,
-    payload: { enabled },
+    payload,
   });
   if (message) appendLedgerEntryFromMessage(state, message);
 };
 
 // Signed, ledger-only entry addressed to the user itself; never queued, since
 // self-sync already copies new ledger entries to the user's other devices.
-const appendSelfPrefsEntry = async (state, enabled) => {
+const appendSelfPrefsEntry = async (state, payload) => {
   const unsigned = createPeerMessageModel({
     id: createId("peer"),
     type: PEER_MESSAGE_TYPE_NOTIFICATION_PREFS,
     from_user_id: state.user.id,
     to_user_id: state.user.id,
     created_at: new Date().toISOString(),
-    payload: { enabled },
+    payload,
   });
   const keyProvider = createKeyProviderFromState(state);
   let authorship = null;
@@ -62,14 +70,14 @@ const appendSelfPrefsEntry = async (state, enabled) => {
   appendLedgerEntryFromMessage(state, { ...unsigned, authorship });
 };
 
-export const publishOsNotifyTypes = async (state, types) => {
+export const publishOsNotifyChoices = async (state, choices) => {
   if (!hasUser(state)) return;
-  const enabled = normalizeOsNotifyTypes(types);
-  await appendSelfPrefsEntry(state, enabled);
+  const payload = prefsPayload(normalizeOsNotifyChoices(choices));
+  await appendSelfPrefsEntry(state, payload);
   const friends = Array.isArray(state.user.friends) ? state.user.friends : [];
   for (const friend of friends) {
     if (isPeerEligibleFriendshipStatus(friend.friendship_status)) {
-      await queuePrefsTo(state, friend.person_id, enabled);
+      await queuePrefsTo(state, friend.person_id, payload);
     }
   }
 };
@@ -77,6 +85,6 @@ export const publishOsNotifyTypes = async (state, types) => {
 // Tell one (newly accepted) friend the user's choice, if the user ever made one.
 export const shareOsNotifyTypesWith = async (state, friendId) => {
   if (!hasUser(state) || !friendId) return;
-  const own = collectOsNotifyTypesByAuthor(state.ledger)[state.user.id];
-  if (own) await queuePrefsTo(state, friendId, own);
+  const own = collectOsNotifyChoicesByAuthor(state.ledger)[state.user.id];
+  if (own) await queuePrefsTo(state, friendId, prefsPayload(own));
 };

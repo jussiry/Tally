@@ -4,8 +4,10 @@ notifications, the push service this browser uses, and a reset to defaults.
 
 The event list and defaults come from notify/notification-policy.js; the
 current choice is read from the ledger (latest notification_prefs entry by the
-user) and saved with setOsNotifyTypes, which also shares it with friends so
-their clients only push the enabled events.
+user) and saved with setOsNotifyChoices, which also shares it with friends so
+their clients only push the enabled events. Only settings the user switched
+are stored; the rest keep following their defaults, also when one changes or
+a new setting is added.
 
 The push service is the browser vendor's (FCM for Chromium browsers, Mozilla's
 for Firefox, Apple's for Safari). It's fixed by the browser, so it is shown,
@@ -14,11 +16,11 @@ not edited.
 */
 
 import { initCheckToggle } from "../components/check-toggle.js";
-import { setOsNotifyTypes } from "../../js/commands/notification-prefs.js";
+import { setOsNotifyChoices } from "../../js/commands/notification-prefs.js";
 import {
   OS_NOTIFY_SETTINGS,
-  getDefaultOsNotifyTypes,
-  getOsNotifyTypes,
+  getOsNotifyChoices,
+  resolveOsNotifyTypes,
 } from "../../js/notify/notification-policy.js";
 
 // Push endpoint host → service name. Hosts not listed show as the bare host.
@@ -64,15 +66,18 @@ export const bindNotificationSettings = (root, data) => {
   if (titleEl) titleEl.textContent = "Notifications";
   if (!listEl || !templateEl) return;
 
-  // The page's own copy of the choice (message types); each change saves the
-  // whole list. A setting switches all of its types together and shows as on
-  // only when all of them are.
-  let enabled = new Set(getOsNotifyTypes(data?.ledger, data?.you?.id));
-  const isSettingOn = (setting) => setting.types.every((type) => enabled.has(type));
+  // The page's own copy of the settings the user has set (type → on/off); a
+  // change records that setting's types and saves. A setting switches all of
+  // its types together and shows as on only when all of them are.
+  let choices = { ...getOsNotifyChoices(data?.ledger, data?.you?.id) };
+  const isSettingOn = (setting) => {
+    const enabled = new Set(resolveOsNotifyTypes(choices));
+    return setting.types.every((type) => enabled.has(type));
+  };
   const toggles = new Map();
   let isSyncing = true;
 
-  const save = () => setOsNotifyTypes(Array.from(enabled));
+  const save = () => setOsNotifyChoices(choices);
 
   OS_NOTIFY_SETTINGS.forEach((setting) => {
     const row = templateEl.content.firstElementChild.cloneNode(true);
@@ -84,7 +89,7 @@ export const bindNotificationSettings = (root, data) => {
       checked: isSettingOn(setting),
       onChange: (isChecked) => {
         if (isSyncing) return;
-        setting.types.forEach((type) => (isChecked ? enabled.add(type) : enabled.delete(type)));
+        setting.types.forEach((type) => (choices[type] = isChecked));
         void save();
       },
     });
@@ -94,7 +99,7 @@ export const bindNotificationSettings = (root, data) => {
   isSyncing = false;
 
   resetEl?.addEventListener("click", () => {
-    enabled = new Set(getDefaultOsNotifyTypes());
+    choices = {};
     isSyncing = true;
     toggles.forEach((toggle, setting) => toggle.setChecked(isSettingOn(setting)));
     isSyncing = false;
