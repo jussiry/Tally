@@ -44,6 +44,7 @@ import { createKeyProviderFromState } from "../crypto/key-provider.js";
 import { getMainRelayUrl } from "../utils/relay-url.js";
 import {
   createInboundProcessingResult,
+  reconcileFriendshipStatuses,
   routeInboundEntry,
   routeOutboundEntry,
 } from "./handlers.js";
@@ -147,6 +148,7 @@ export const addLedgerEntries = async (entries) => {
       state,
       state.ledger.filter((entry) => !knownIds.has(entry.id))
     );
+    reconcileFriendshipStatuses(state);
     await persistAndBuildView(state);
   }
   return added;
@@ -194,6 +196,7 @@ export const addOutboundLedgerEntries = async (entries) => {
   for (const entry of validEntries) {
     if (routeOutboundEntry(state, entry)) stateChanged += 1;
   }
+  stateChanged += reconcileFriendshipStatuses(state);
 
   if (stateChanged > 0) {
     await persistAndBuildView(state);
@@ -246,8 +249,20 @@ export const repairConnectionsFromLedger = async () => {
   for (const entry of outboundEntries) {
     if (routeOutboundEntry(state, entry)) changed += 1;
   }
+  changed += reconcileFriendshipStatuses(state);
 
   if (changed > 0) {
+    await persistAndBuildView(state);
+  }
+};
+
+// Startup pass: a device whose statuses drifted from its ledger (entries that
+// arrived out of order before reconcileFriendshipStatuses existed) heals on
+// the next load. Cheap, so it runs every time.
+export const reconcileFriendshipsFromLedger = async () => {
+  const state = await loadState();
+  if (!hasUser(state)) return;
+  if (reconcileFriendshipStatuses(state) > 0) {
     await persistAndBuildView(state);
   }
 };
@@ -390,6 +405,7 @@ export const applyInboundPeerMessage = async (incomingMessage) => {
     );
   }
 
+  reconcileFriendshipStatuses(state);
   markProcessedPeerMessage(state, message.id);
   const friend = getFriend(state, message.from_user_id);
   if (friend) {

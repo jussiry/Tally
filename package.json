@@ -16,6 +16,7 @@
     "smoke": "node scripts/smoke-test.cjs",
     "test:nip44": "node tests/nip44/run.mjs",
     "test:ledger-validation": "node tests/ledger-validation/run.mjs",
+    "test:friendship-status": "node tests/friendship-status/run.mjs",
     "test:notification-choices": "node tests/notification-choices/run.mjs",
     "test:push-optin": "node tests/push-optin/run.cjs",
     "test:recurring-payments": "node tests/recurring-payments/run.mjs",

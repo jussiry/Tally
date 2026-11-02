@@ -48,6 +48,7 @@ import {
   applyOwnNameFromLedger,
   getRealtimeSnapshot,
   markPeerMessageReceived,
+  reconcileFriendshipsFromLedger,
   runLedgerMigrationIfNeeded,
   updateLastSyncedAt,
 } from "./bridge.js";
@@ -970,7 +971,9 @@ const createRealtimeClient = () => {
   // Run the one-time ledger migration (no-op after the first deployment).
   // Must complete before the initial snapshot so repaired connections are
   // visible to the signaling layer immediately.
-  void runLedgerMigrationIfNeeded().then(() => syncRealtimeState());
+  void runLedgerMigrationIfNeeded()
+    .then(() => reconcileFriendshipsFromLedger())
+    .then(() => syncRealtimeState());
 
   const ping = (nameOrKey) => {
     if (!nameOrKey || !currentSnapshot) {

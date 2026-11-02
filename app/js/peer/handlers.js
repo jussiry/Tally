@@ -38,6 +38,7 @@ import { MessageType } from "./messages.js";
 import { describeSchedule, normalizeSchedule } from "../recurring.js";
 import {
   deriveTallyFromLedger,
+  getFriendshipActivity,
   mergeVerifiedEntries,
   verifyReactivationHistory,
 } from "../ledger.js";
@@ -742,4 +743,29 @@ export const routeOutboundEntry = (state, entry) => {
     default:
       return false;
   }
+};
+
+/**
+ * Bring every friendship's active/deactivated status in line with the
+ * ledger (ledger.ts getFriendshipActivity). Run after each batch of synced
+ * entries and once at startup: the per-entry handlers above see entries in
+ * arrival order, which across devices is not the order they were made in.
+ * Returns the number of friends changed.
+ */
+export const reconcileFriendshipStatuses = (state) => {
+  if (!state?.user?.id || !Array.isArray(state.user.friends)) return 0;
+  const activity = getFriendshipActivity(state.ledger, state.user.id);
+  let changed = 0;
+  for (const friend of state.user.friends) {
+    const active = activity.get(friend.person_id);
+    if (active === undefined) continue;
+    if (!active && isAcceptedFriendshipStatus(friend.friendship_status)) {
+      disableFriend(friend);
+      changed += 1;
+    } else if (active && isDeactivatedFriendshipStatus(friend.friendship_status)) {
+      friend.friendship_status = FriendshipStatus.ACCEPTED;
+      changed += 1;
+    }
+  }
+  return changed;
 };

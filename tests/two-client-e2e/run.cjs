@@ -56,6 +56,11 @@ const BUILT_IN_SCENARIOS = {
     "scenarios",
     "friendship-fresh-start.cjs"
   ),
+  "default-self-sync": path.join(
+    __dirname,
+    "scenarios",
+    "default-self-sync.cjs"
+  ),
 };
 
 const parseArgs = (argv) => {

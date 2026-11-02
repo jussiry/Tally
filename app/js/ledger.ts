@@ -278,6 +278,55 @@ export const getOpenReactivationRequests = (
   return open;
 };
 
+// Whether each friendship that has ever been deactivated is active now, read
+// off the ledger: the latest friendship_default (either direction) against
+// the latest accepted reactivation_response that answers a request in the
+// ledger. The later of the two wins. Friends with neither are left out.
+//
+// Applying these entries one at a time depends on the order they arrive in:
+// own devices and friends sync in batches, so an old reactivation can land
+// after a newer default, or a response before its request. Reading the
+// outcome from the whole ledger gives every device the same answer.
+export const getFriendshipActivity = (
+  ledger: LedgerEntryModel[] | null | undefined,
+  myId: string
+): Map<string, boolean> => {
+  const activity = new Map<string, boolean>();
+  if (!Array.isArray(ledger) || !myId) return activity;
+  const latest = new Map<string, { at: string; active: boolean }>();
+
+  // Requests by `${requester}|${request_id}`, each with its recipient.
+  const requests = new Map<string, string>();
+  for (const entry of ledger) {
+    if (entry.type !== MessageType.REACTIVATION_REQUEST) continue;
+    const requestId = requestIdOf(entry);
+    if (requestId) requests.set(`${entry.from_user_id}|${requestId}`, entry.to_user_id);
+  }
+
+  const note = (friendId: string, at: string, active: boolean) => {
+    const previous = latest.get(friendId);
+    // On a tie the default wins: deactivating is the safe side.
+    if (previous && (previous.at > at || (previous.at === at && !previous.active))) return;
+    latest.set(friendId, { at, active });
+  };
+  for (const entry of ledger) {
+    const friendId = counterpartOf(entry, myId);
+    if (!friendId) continue;
+    if (entry.type === MessageType.FRIENDSHIP_DEFAULT) {
+      note(friendId, originOf(entry), false);
+    } else if (
+      entry.type === MessageType.REACTIVATION_RESPONSE &&
+      entry.payload?.accepted === true &&
+      requests.get(`${entry.to_user_id}|${requestIdOf(entry)}`) === entry.from_user_id
+    ) {
+      note(friendId, originOf(entry), true);
+    }
+  }
+
+  latest.forEach(({ active }, friendId) => activity.set(friendId, active));
+  return activity;
+};
+
 // Rebuild a friend's tally and record list from the ledger alone — for a
 // friendship whose local record was deleted and came back with a reactivation
 // suggestion. Newest record first, like the friend record keeps them.
