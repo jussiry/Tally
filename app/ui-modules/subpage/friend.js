@@ -446,12 +446,14 @@ export const bindFriendDetail = (root, data, friendId) => {
   const renderPaymentRequest = (request) => {
     const box = paymentRequestTemplate.content.firstElementChild.cloneNode(true);
     const recurrence = request.schedule ? ` ${describeSchedule(request.schedule)}` : "";
-    const amount = `€${request.amount_eur.toFixed(2)}${recurrence}`;
-    const label = request.is_incoming
-      ? `${friendFirstName} requests ${amount}`
-      : `You requested ${amount} from ${friendFirstName}`;
-    box.querySelector('[data-bind="payment-request-label"]').textContent =
-      request.note ? `${label} — ${request.note}` : label;
+    const amountEl = document.createElement("span");
+    amountEl.className = "actionable-box-amount";
+    amountEl.textContent = `€${request.amount_eur.toFixed(2)}`;
+    const [before, after] = request.is_incoming
+      ? [`${friendFirstName} requests a record of `, recurrence]
+      : ["You requested ", `${recurrence} from ${friendFirstName}`];
+    const note = request.note ? ` — ${request.note}` : "";
+    box.querySelector('[data-bind="payment-request-label"]').replaceChildren(before, amountEl, after + note);
 
     const onClick = (action, handler) => {
       box.querySelector(`[data-action="${action}"]`).addEventListener("click", async () => {

@@ -208,6 +208,13 @@
   /*white-space: nowrap;*/
 }
 
+/* The amount in a payment request stands out from the small muted label. */
+.actionable-box-amount {
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+
 /* A recurring payment is standing information, not a decision: same box,
    without the call-to-action colouring. */
 .actionable-box.recurring-payment {
