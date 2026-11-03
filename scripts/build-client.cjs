@@ -14,7 +14,8 @@ Why per-file (bundle: false):
     emits them as-is since they contain no TS syntax.
 
 Watch mode (--watch) is incremental: esbuild only reprocesses files whose
-mtime changed. Cold builds touch everything once; after that it's
+mtime changed. Static assets (CSS, HTML, …) are watched separately so editing
+one alone still refreshes the service worker's precache manifest. Cold builds touch everything once; after that it's
 change-driven and fast enough to pair with nodemon's backend restarts.
 */
 
@@ -65,6 +66,9 @@ const collectEntryPoints = (dir, extensions) => {
  * content-hash versioning, independent of data/version.json (which gates data
  * migrations, a separate concern).
  */
+// Static assets the browser fetches straight from the source tree.
+const STATIC_ASSET_EXTENSIONS = [".html", ".css", ".svg", ".png", ".json", ".webmanifest", ".ico", ".woff", ".woff2"];
+
 const hashBytes = (buf) =>
   crypto.createHash("sha256").update(buf).digest("hex").slice(0, 16);
 
@@ -89,7 +93,7 @@ const collectPrecacheFiles = (dir) => {
     // Source tree: ship the static assets the browser fetches directly
     // (templates, styles, icons, manifest). The .js/.ts here is source that is
     // transpiled into dist/, so it is never requested at runtime.
-    if ([".html", ".css", ".svg", ".png", ".json", ".webmanifest", ".ico", ".woff", ".woff2"].includes(ext)) {
+    if (STATIC_ASSET_EXTENSIONS.includes(ext)) {
       results.push(rel);
     }
   }
@@ -127,6 +131,29 @@ const precacheManifestPlugin = {
       );
     });
   },
+};
+
+// esbuild watches only the JS/TS entry points, so a change to a static asset
+// alone (a stylesheet, a template) would never rewrite the manifest, and the
+// service worker would keep serving the old copy. Watch those files too and
+// rewrite the manifest on change, debounced so a save burst writes it once.
+const STATIC_ASSET_DEBOUNCE_MS = 100;
+
+const watchStaticAssets = () => {
+  let timer = null;
+  fs.watch(CLIENT_DIR, { recursive: true }, (eventType, filename) => {
+    if (!filename) return;
+    const rel = filename.split(path.sep).join("/");
+    if (rel.startsWith("dist/")) return;
+    if (!STATIC_ASSET_EXTENSIONS.includes(path.extname(rel).toLowerCase())) return;
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      const precache = writePrecacheManifest();
+      console.log(
+        `[build-client] ${rel} changed → precache manifest @ ${precache.version}`,
+      );
+    }, STATIC_ASSET_DEBOUNCE_MS);
+  });
 };
 
 const buildOptions = () => {
@@ -187,6 +214,7 @@ const run = async () => {
     // build and on every subsequent incremental rebuild.
     await ctx.rebuild();
     await ctx.watch();
+    watchStaticAssets();
     console.log(`[build-client] watching ${options.entryPoints.length} files`);
     // Leave the process alive; esbuild's watcher runs in the background.
   } else {

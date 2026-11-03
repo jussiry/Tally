@@ -60,7 +60,9 @@
       <code>app/js/vendor/*.js</code> passes through untouched — it contains no
       TypeScript syntax, so esbuild emits it verbatim. Watch mode
       (<code>--watch</code>) is mtime-driven and incremental; cold builds touch
-      everything once.
+      everything once. esbuild only watches JS/TS, so static assets (CSS, HTML,
+      icons) get their own watcher that rewrites the precache manifest when one
+      changes — otherwise the service worker keeps serving the old copy.
     </p>
 
     <h3>Why some files are TypeScript</h3>
