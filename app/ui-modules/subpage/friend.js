@@ -4,6 +4,8 @@ This module binds the friend detail subpage. It renders tally/trust summary card
 It also exposes navigation triggers to related subpages by wiring the trust tile click target from the current friend context.
 
 A deactivated friendship (after a default) shows its records read-only as history, with the default notice on top, a way to suggest or answer reactivation, and a button to delete the history (commands/friendship-default.js).
+
+An incoming friend request shows only the request with its Accept and Reject buttons: the tally and trust cards and the records card are removed.
 @category ui
 */
 
@@ -135,6 +137,14 @@ const formatDueTime = (iso) =>
   });
 
 export const bindFriendDetail = (root, data, friendId) => {
+  const friend = data.friends.find((entry) => entry.person_id === friendId);
+  const friendshipStatus = friend?.friendship_status || FriendshipStatus.ACCEPTED;
+  // An incoming request has nothing to show yet but the request itself.
+  if (friendshipStatus === FriendshipStatus.PENDING_INCOMING) {
+    root.querySelector(".friend-stats")?.remove();
+    root.querySelector('[data-section="friend-body"]')?.remove();
+  }
+
   const titleEl = root.querySelector('[data-bind="page-title"]');
   const labelEl = root.querySelector('[data-bind="friend-label"]');
   const headerRight = root.querySelector('[data-slot="subpage-header-right"]');
@@ -165,10 +175,8 @@ export const bindFriendDetail = (root, data, friendId) => {
   const friendDangerButton = root.querySelector('[data-action="friend-danger-action"]');
   const friendDangerLabelEl = root.querySelector('[data-bind="friend-danger-label"]');
 
-  const friend = data.friends.find((entry) => entry.person_id === friendId);
   const friendName = friend?.person_name || "Friend";
   const friendFirstName = friendName.split(/\s+/)[0] || friendName;
-  const friendshipStatus = friend?.friendship_status || FriendshipStatus.ACCEPTED;
   const tally = friend?.debt_eur || 0;
   const isOnline = getConnectedPeerIds().includes(friendId);
   const isRelay = !isOnline && getServerPresentPeerIds().includes(friendId);
@@ -302,10 +310,7 @@ export const bindFriendDetail = (root, data, friendId) => {
   }
   if (trustTitleEl) {
     trustTitleEl.textContent =
-      friendshipStatus === FriendshipStatus.PENDING_OUTGOING ||
-      friendshipStatus === FriendshipStatus.PENDING_INCOMING
-        ? "Suggested trust limit"
-        : "Trust limit";
+      friendshipStatus === FriendshipStatus.PENDING_OUTGOING ? "Suggested trust limit" : "Trust limit";
   }
   if (trustAmountEl) {
     const trustLimit = friend?.trust_credit_limit_eur ?? 0;
@@ -339,13 +344,8 @@ export const bindFriendDetail = (root, data, friendId) => {
       tallyAmountEl.classList.toggle("pos", tally >= 0);
       tallyAmountEl.classList.toggle("neg", tally < 0);
     } else {
-      const statusText =
-        friendshipStatus === FriendshipStatus.PENDING_INCOMING
-          ? "Incoming"
-          : friendshipStatus === FriendshipStatus.REJECTED
-          ? "Rejected"
-          : "Pending";
-      tallyAmountEl.textContent = statusText;
+      tallyAmountEl.textContent =
+        friendshipStatus === FriendshipStatus.REJECTED ? "Rejected" : "Pending";
       tallyAmountEl.classList.remove("pos", "neg");
     }
   }
@@ -562,9 +562,7 @@ export const bindFriendDetail = (root, data, friendId) => {
 
   if (!hasRecords) {
     const statusBodyText =
-      friendshipStatus === FriendshipStatus.PENDING_INCOMING
-        ? "This friend request is waiting for your decision."
-        : friendshipStatus === FriendshipStatus.REJECTED
+      friendshipStatus === FriendshipStatus.REJECTED
         ? "This friendship request has been rejected."
         : "This friend request is pending until the other user accepts it.";
     bodyEl.innerHTML = `<div class="empty">${statusBodyText}</div>`;

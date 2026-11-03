@@ -266,6 +266,11 @@
   width: 100%;
 }
 
+/* .settings-big-button sets display, which would override [hidden]. */
+.friend-danger-button[hidden] {
+  display: none;
+}
+
 .friend-relay-list {
   list-style: none;
   margin: 0;
