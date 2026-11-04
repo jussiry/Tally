@@ -30,6 +30,7 @@
   covers: {
     count:     17                 // balance-affecting entries since `previous`
     digest:    &lt;sha256&gt;           // over their sorted ids
+    until:     &lt;timestamp&gt;        // every covered entry is at or before this; no later one is
   }
   created_at:  &lt;timestamp&gt;
 }</code></pre>
@@ -43,6 +44,7 @@
 <p>This is the two-party case of TIP-7's multi-party record: one canonical digest, valid if and only if every listed party's signature is present and verifies. The two should share one implementation.</p>
 <p><strong>Signing order doesn't matter.</strong> Whoever signs last can only commit or not. Withholding leaves the pair exactly where they were, and committing late is harmless because the covered set is explicit: anything newer simply isn't in it. So unlike TIP-7, nobody needs to be forced to sign last.</p>
 <p><strong>When.</strong> Automatically, not by the user: when both are online and either enough covered entries have accumulated or enough time has passed since the last checkpoint. A declined or failed attempt costs nothing and is retried later.</p>
+<p><strong>A time cutoff keeps archived entries from coming back.</strong> Once covered entries are archived, their ids are gone from the live ledger, so a covered entry that is synced in again — from a device that missed the checkpoint, or replayed by a peer — would look new and be counted twice. So the checkpoint also carries <code>covers.until</code>, a signed-time cutoff, and both sides check that the covered set is <em>exactly</em> the balance-affecting entries with <code>originated_at</code> ≤ <code>until</code>: none covered is later, none left out is earlier. After the commit, a balance-affecting entry between the pair with <code>originated_at</code> ≤ <code>until</code> is rejected unless already known. The settling margin applies to <code>until</code> itself, so an entry still in flight usually falls after it. One that arrives very late, with an earlier signed time, is rejected by both sides alike, and its author's client drops it and reports it rather than letting the two balances drift. Keeping the archived ids as a dedup set would also work, but it grows forever, which is what checkpoints are meant to stop.</p>
 <p><strong>Balance is computed from the ledger.</strong> Today <code>debt_eur</code> is maintained incrementally by the message handlers. The checkpoint needs a pure function — <em>balance of this relationship = checkpoint balance + Σ covered transactions</em> — that both sides run identically. Writing it is a prerequisite, and it should then become the source of <code>debt_eur</code> rather than a cross-check.</p>
 <hr />
 <h2>What survives a checkpoint</h2>
