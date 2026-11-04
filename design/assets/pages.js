@@ -42,6 +42,7 @@ window.DESIGN_PAGES = [
 
   { group: "TIPs", href: "tips.html", title: "TIPs", status: "reference" },
   { group: "TIPs", href: "tips-todo.html", title: "TODO", status: "reference" },
+  { group: "TIPs", href: "ordered-ledgers.html", title: "Should ledgers be ordered?", status: "reference" },
   { group: "TIPs", href: "tip-1-user-merge.html", title: "TIP-1 User merge", status: "proposal",
     summary: "Merge two of your identities into one; friends move over to the new key." },
   { group: "TIPs", href: "tip-2-circular-cancellation.html", title: "TIP-2 Circular cancellation", status: "proposal",

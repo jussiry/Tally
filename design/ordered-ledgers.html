@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Should ledgers be ordered? — Design</title>
+  <link rel="stylesheet" href="assets/design.css" />
+</head>
+<body>
+  <main class="page" data-status="reference"
+    data-files="js/ledger.ts js/peer/handlers.js js/peer/bridge.js">
+<h1>Should ledgers be ordered?</h1>
+<p>A thinking piece, not a <a href="tips.html">TIP</a>: it lays out the options for giving the records between two friends an agreed order, so a later TIP can pick one. Started 2026-11-04.</p>
+<hr />
+<h2>Where we are</h2>
+<p>Each user keeps one <a href="spec-ledger.html">ledger</a> of every record they sent or received. The records between two friends are its bilateral slice, which is what <a href="spec-peer-communication.html">sync</a> exchanges. The slice is an <strong>unordered set</strong>: entries are sorted by the local, unsigned <code>timestamp</code>, and sync merges by entry id.</p>
+<p>That is enough for records whose effect does not depend on order. Transactions add up the same in any order, and a payment request is closed by a set lookup, so a cancel that arrives before its request still works.</p>
+<h2>Where order matters</h2>
+<ul>
+  <li><strong>Latest-wins values</strong> — a name change, a trust-limit change, notification preferences. Two changes made close together are applied in arrival order, so two devices can end up with different "latest" values.</li>
+  <li><strong>State changes of the friendship</strong> — accept, default, reactivation. Records written while a friend was offline may describe a relationship that has since changed.</li>
+  <li><strong>Crossing records</strong> — a cancel crossing a payment for the same request. Today both are kept and the user is told; nothing decides which came first.</li>
+  <li><strong>Conditional records</strong> — anything valid only against a known state, such as a future offer to exchange one currency for another at a fixed rate. Without an order, "the state when this was signed" cannot be stated.</li>
+  <li><strong>Completeness</strong> — with a set, a device cannot tell "we are in sync" from "a record never arrived". Recovery from a friend proves each record is genuine, not that none are missing.</li>
+</ul>
+<p>Whether the ledger is <em>stored</em> per user or per connection is a separate question. Order is about the bilateral slice either way; storing per connection mostly makes that slice easier to sync, checkpoint and delete as a unit.</p>
+<hr />
+<h2>Options</h2>
+
+<h3>1. Keep the set; make the rules order-free</h3>
+<p>Leave the ledger unordered and design every record type so its effect is the same in any order: a set lookup for closures, and a fixed tie-break for latest-wins values.</p>
+<ul>
+  <li><strong>For:</strong> no change to sync or storage; nothing ever waits for a missing record.</li>
+  <li><strong>Against:</strong> each new record type needs its own rule, and some cannot have one (conditional records). No proof of completeness.</li>
+</ul>
+
+<h3>2. Order by signed time</h3>
+<p>Order by <code>originated_at</code>, which the author signs, instead of the local <code>timestamp</code>, with a fixed tie-break.</p>
+<ul>
+  <li><strong>For:</strong> cheap; both sides compute the same order from the same records.</li>
+  <li><strong>Against:</strong> clocks are wrong and can be set back, so "latest" is whatever the author claims. A late-arriving record can still land in the middle of history. No proof of completeness.</li>
+</ul>
+
+<h3>3. One shared hash chain per connection</h3>
+<p>Every record names the hash of the previous record between the two friends. Both friends hold the same chain, and its latest hash stands for the whole history.</p>
+<ul>
+  <li><strong>For:</strong> one total order, so "the next record between us" means one thing. Comparing latest hashes shows at once whether two devices agree, and a gap shows which record is missing. Earlier records can't be dropped without breaking the chain. Fits <a href="tip-8-bilateral-checkpoints.html">TIP-8</a>: a checkpoint becomes a co-signed latest hash.</li>
+  <li><strong>Against:</strong> offline use means both friends, or two devices of one friend, will sometimes add a record after the same hash. These forks have to be merged (below). A record is only final once the friend has built on it. One missing record holds up the ones after it.</li>
+</ul>
+
+<h3>4. Two author chains per connection</h3>
+<p>Each friend chains only their own records (<code>prev</code>), and each record also names the latest record seen from the other friend (<code>seen</code>). Both friends still hold both chains.</p>
+<ul>
+  <li><strong>For:</strong> the two friends can't fork each other, so records are final as soon as they're written. Still proves completeness per author.</li>
+  <li><strong>Against:</strong> only a partial order: two records written at the same moment have no "first". Rules have to be phrased per author ("valid while its author hasn't written since"), which is less natural than one order. Devices of one user can still fork their own chain.</li>
+</ul>
+
+<h3>5. Checkpoints only</h3>
+<p>Keep the set, and let <a href="tip-8-bilateral-checkpoints.html">TIP-8</a> checkpoints fix the agreed state from time to time.</p>
+<ul>
+  <li><strong>For:</strong> already planned; bounds how far two devices can disagree.</li>
+  <li><strong>Against:</strong> order is only known at checkpoints; between them the questions above remain.</li>
+</ul>
+
+<hr />
+<h2>Merging forks automatically (option 3)</h2>
+<p>Tally rests on agreements between two parties, and both parties may rewrite what they both agree on. So a fork is not damage, just two records competing for the same place, and a rule both clients apply settles it with no user involvement:</p>
+<ol>
+  <li>A fixed rule picks the winner, for example the record with the lower hash.</li>
+  <li>The loser's author re-signs it after the winner. Their client does this on its own, the next time it is online.</li>
+  <li>Before re-signing, the client checks the record against the new state. If it no longer holds (a trust limit now exceeded, a condition no longer met), the record is dropped and the user is told what happened, not asked.</li>
+</ol>
+<p>Things to keep in mind:</p>
+<ul>
+  <li><strong>Pending state.</strong> A record not yet built on by the friend may still move or be dropped. The UI, and <a href="tip-5-os-notifications.html">OS notifications</a>, should treat it as pending.</li>
+  <li><strong>Only the author can re-sign.</strong> A losing record waits for its author's device. With an external signer (<a href="tip-6-external-nostr-key-storage.html">TIP-6</a>) a re-sign may raise a prompt.</li>
+  <li><strong>References by hash change.</strong> Records that refer to others should keep using ids, which survive a re-sign, and use hashes only for the chain itself.</li>
+  <li><strong>Records involving several friends</strong> (<a href="tip-2-circular-cancellation.html">TIP-2</a>, <a href="tip-7-routed-payments.html">TIP-7</a>) touch several chains, and a fork in one can drop that part. Their all-or-nothing rule then has to see the drop.</li>
+</ul>
+
+<hr />
+<h2>Leaning</h2>
+<p>Option 3 with automatic merging gives the simplest rules to write against: one order, a quick in-sync check, and no user decisions. Its cost is the pending state and the merge machinery. Option 4 is the fallback if waiting for the friend to build on a record turns out to hurt too much offline. Either way the move fits together with TIP-8, which can provide the starting point of each chain for existing history.</p>
+
+<h2>Open questions</h2>
+<ol>
+  <li>Which record types belong in the chain? Probably anything that affects the balance or the relationship; not transport traffic (sync, receipts) or records only for one's own devices.</li>
+  <li>The fork rule: lower hash, or something that favours, say, the earlier signed time?</li>
+  <li>How a user's own devices take part: one chain position shared through self-sync, or forks between devices treated like any other fork.</li>
+  <li>Migration: start each chain from a TIP-8 checkpoint of the existing history, or from the existing records in timestamp order?</li>
+</ol>
+  </main>
+  <script src="assets/pages.js"></script>
+  <script src="assets/design.js"></script>
+</body>
+</html>
