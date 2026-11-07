@@ -35,7 +35,10 @@ import {
 import { appendLedgerEntryFromMessage } from "../ledger.js";
 import { routeOutboundEntry } from "../peer/handlers.js";
 
-export const createFriend = async ({ friendId, trustLimit, name, relays }) => {
+/**
+ * @param {{ friendId: string, trustLimit?: number, name?: string, relays?: string[], claimProof?: string }} options
+ */
+export const createFriend = async ({ friendId, trustLimit, name, relays, claimProof }) => {
   const normalizedFriendId = asTrimmedString(friendId);
   if (!normalizedFriendId) {
     return loadData();
@@ -90,6 +93,8 @@ export const createFriend = async ({ friendId, trustLimit, name, relays }) => {
         Number.isFinite(normalizedTrustLimit) && normalizedTrustLimit >= 0
           ? normalizedTrustLimit
           : 0,
+      // TIP-4: the secret of a claim link, so the sender accepts at once.
+      ...(claimProof ? { claim_proof: claimProof } : {}),
     },
   });
   appendLedgerEntryFromMessage(state, requestMsg);

@@ -113,3 +113,10 @@
   background: oklch(48% 0.02 120 / 0.35);
   box-shadow: none;
 }
+
+.welcome-claim [data-bind="welcome-claim-text"]:not(:empty) {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--ink);
+  font-style: italic;
+}

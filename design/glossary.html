@@ -70,6 +70,14 @@
         <code>transaction</code> peer message. "IOU" is also the project's former
         name. → see <a href="#tally">Tally</a>.</dd>
 
+      <dt id="claim" data-files="js/commands/offline-claim.js js/utils/claim-link.js"><a class="term-self" href="#claim">Record link, Claim</a></dt>
+      <dd>A link that invites someone not on Tally yet as a friend, or sends a
+        record to or requests one from them. It carries a secret; opening it sends the secret back in a
+        friend request, so the author's client accepts at once. In the code a
+        shared link is an <code>offline_claim</code> and opening one is
+        <em>claiming</em> it. In the UI this is <em>Record by link</em>. → see
+        <a href="tip-4-add-record-by-link.html">TIP-4</a>.</dd>
+
       <dt id="friend" data-files="js/commands/friendship.js js/utils/friendships.js js/friends-helpers.js js/models/data-model.ts"><a class="term-self" href="#friend">Friend, Connection</a></dt>
       <dd>An accepted peer relationship between two users. "Connection" is the
         legacy term (still present as deprecated data-model aliases);

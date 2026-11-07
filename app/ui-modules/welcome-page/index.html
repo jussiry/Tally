@@ -1,7 +1,12 @@
 <section class="welcome-screen" data-section="welcome">
   <div class="welcome-card">
-    <h1>Welcome to Tally</h1>
-    <p class="welcome-copy">
+    <h1 data-bind="welcome-title">Welcome to Tally</h1>
+    <p class="welcome-copy welcome-claim" data-section="welcome-claim" hidden>
+      <span data-bind="welcome-claim-text"></span>
+      Tally keeps track of favours between friends.
+      <span data-bind="welcome-claim-how"></span>
+    </p>
+    <p class="welcome-copy" data-section="welcome-intro">
       Money, in its essense, is just book keeping that tracks good deeds that should
       be paid back. Tally returns money to its roots by basing it on personal IOUs
       (I owe you) that can flow to strangers, friend to friend.

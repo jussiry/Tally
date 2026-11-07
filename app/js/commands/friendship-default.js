@@ -31,9 +31,7 @@ import {
 import { asTrimmedString, createId, hasUser } from "../state-utils.js";
 import { loadData, loadState, persistAndBuildView } from "../app-state.js";
 import { queuePeerMessage } from "../peer/outbox.js";
-import { signTallyMessage } from "../peer/authorship.js";
-import { createKeyProviderFromState } from "../crypto/key-provider.js";
-import { createPeerMessageModel } from "../models/data-model.js";
+import { appendSelfLedgerEntry } from "../peer/self-entry.js";
 import { deleteFriendHistory, getFriend } from "../friends-helpers.js";
 import {
   appendLedgerEntryFromMessage,
@@ -126,35 +124,12 @@ export const respondToReactivation = async (friendId, requestId, accepted) => {
   return persistAndBuildView(state);
 };
 
-// Signed, ledger-only entry addressed to the user itself (see
-// notify/notification-prefs.js for the same pattern).
-const appendHistoryDeletedEntry = async (state, friendId) => {
-  const unsigned = createPeerMessageModel({
-    id: createId("peer"),
-    type: MessageType.HISTORY_DELETED,
-    from_user_id: state.user.id,
-    to_user_id: state.user.id,
-    created_at: new Date().toISOString(),
-    payload: { friend_id: friendId },
-  });
-  const keyProvider = createKeyProviderFromState(state);
-  let authorship = null;
-  if (keyProvider) {
-    try {
-      authorship = await signTallyMessage(unsigned, keyProvider);
-    } catch {
-      authorship = null;
-    }
-  }
-  appendLedgerEntryFromMessage(state, { ...unsigned, authorship });
-};
-
 export const deleteDeactivatedFriendHistory = async (friendId) => {
   const found = await loadFriend(friendId, isDeactivatedFriendshipStatus);
   if (!found) return loadData();
   const { state, friendId: deletedId } = found;
 
   deleteFriendHistory(state, deletedId);
-  await appendHistoryDeletedEntry(state, deletedId);
+  await appendSelfLedgerEntry(state, MessageType.HISTORY_DELETED, { friend_id: deletedId });
   return persistAndBuildView(state);
 };

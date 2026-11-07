@@ -15,6 +15,9 @@ import {
   subscribeToDataChanges,
 } from "./app-state.js";
 import { createFriend } from "./commands/friendship.js";
+import { isAcceptedFriendshipStatus } from "./utils/friendships.js";
+import { claimFromLink } from "./commands/offline-claim.js";
+import { parseClaimHash } from "./utils/claim-link.js";
 import { createTransaction } from "./commands/transaction.js";
 import { requestPayment } from "./commands/payment-request.js";
 import { createRecurringPayment } from "./commands/recurring-payment.js";
@@ -34,6 +37,7 @@ import { bindRequest } from "../ui-modules/subpage/request.js";
 import { bindTrust } from "../ui-modules/subpage/trust.js";
 import { bindTransfer } from "../ui-modules/subpage/transfer.js";
 import { bindNotificationSettings } from "../ui-modules/subpage/notifications.js";
+import { bindSendLink } from "../ui-modules/subpage/send-link.js";
 import { setupSubpageTitleExpand } from "../ui-modules/subpage/subpage-title.js";
 import { applyDevSeedIfRequested } from "./dev/seed.js";
 import { createRealtimeClient } from "./peer/client.js";
@@ -74,6 +78,7 @@ const templatePaths = {
   request: "ui-modules/subpage/request.html",
   trust: "ui-modules/subpage/trust.html",
   transfer: "ui-modules/subpage/transfer.html",
+  sendLink: "ui-modules/subpage/send-link.html",
   notifications: "ui-modules/subpage/notifications.html",
   trustLimitField: "ui-modules/subpage/trust-limit-field.html",
   trustExplainer: "ui-modules/subpage/trust-explainer.html",
@@ -167,9 +172,11 @@ const renderTemplateIntoSlots = (root, slotName, html) => {
   });
 };
 
-const createSubpageRoute = (type, friendId = null) => ({
+const createSubpageRoute = (type, friendId = null, direction = null) => ({
   type,
   friendId,
+  // Record by link only: "send" or "request".
+  direction,
   mainPage: lastMainPage,
 });
 
@@ -228,6 +235,9 @@ const parseRoute = () => {
   if (hash === "notifications") {
     return createSubpageRoute(Route.NOTIFICATIONS);
   }
+  if (hash.startsWith("send-link")) {
+    return createSubpageRoute(Route.SEND_LINK, null, hash.split("/")[1] || null);
+  }
   return pageTitles[hash] ? { type: Route.PAGE, page: hash } : { type: Route.PAGE, page: "tally" };
 };
 
@@ -285,8 +295,13 @@ const loadPage = async (route) => {
 
     if (route.type === Route.WELCOME) {
       bindWelcome(pageView, {
+        claim: pendingClaim,
         onCreateUser: async (name, options) => {
           await createUser(name, options);
+          if (pendingClaim) {
+            await completePendingClaim();
+            return;
+          }
           window.location.hash = "tally";
         },
       });
@@ -415,6 +430,12 @@ const loadPage = async (route) => {
       bindTransfer(pageView, data);
       document.title = "Tally — Transfer";
       setFallbackBackNavigation(pageView);
+    } else if (route.type === Route.SEND_LINK) {
+      const sendLinkHtml = await fetchTemplate(templatePaths.sendLink);
+      renderSubpageContent(pageView, sendLinkHtml);
+      bindSendLink(pageView, data, route.direction || undefined);
+      document.title = "Tally — Record by link";
+      setFallbackBackNavigation(pageView);
     } else if (route.type === Route.NOTIFICATIONS) {
       const notificationsHtml = await fetchTemplate(templatePaths.notifications);
       renderSubpageContent(pageView, notificationsHtml);
@@ -500,7 +521,94 @@ initSwipeNavigation(document.body, {
   getCurrentPage: () => lastMainPage,
 });
 
+// A claim link (TIP-4) waiting for an account to land on. Kept in
+// sessionStorage so a reload on the welcome screen doesn't lose it.
+const PENDING_CLAIM_KEY = "tally.pendingClaim";
+let pendingClaim = null;
+try {
+  pendingClaim = JSON.parse(sessionStorage.getItem(PENDING_CLAIM_KEY) || "null");
+} catch {
+  pendingClaim = null;
+}
+
+const setPendingClaim = (claim) => {
+  pendingClaim = claim;
+  try {
+    if (claim) sessionStorage.setItem(PENDING_CLAIM_KEY, JSON.stringify(claim));
+    else sessionStorage.removeItem(PENDING_CLAIM_KEY);
+  } catch {
+    // Private mode: the claim just doesn't survive a reload.
+  }
+};
+
+const completePendingClaim = async () => {
+  const claim = pendingClaim;
+  setPendingClaim(null);
+  const result = await claimFromLink(claim);
+  const sender = claim.senderName || "The sender";
+  if (result === "sent") {
+    showNotification({
+      text: claim.isFriend
+        ? `Friend request sent. You become friends the next time ${sender}'s app is online.`
+        : claim.isRequest
+        ? `Accepted. The record to ${sender} is sent the next time their app is online.`
+        : `Claim sent. ${sender}'s record arrives the next time their app is online.`,
+      hash: `friend/${claim.key}`,
+    });
+    window.location.hash = `friend/${claim.key}`;
+    return;
+  }
+  showNotification({
+    text: result === "self" ? "This is your own link." : "This link can't be used here.",
+    hash: "tally",
+  });
+  window.location.hash = "tally";
+};
+
+// A request opened on an existing account is a promise to pay, so it needs a
+// yes first; creating an account from the request's welcome screen is that yes.
+const confirmPendingRequest = async () => {
+  const claim = pendingClaim;
+  const sender = claim.senderName || "Someone";
+  const data = await loadData();
+  const isFriend = !!data?.friends?.some(
+    (friend) => friend.person_id === claim.key && isAcceptedFriendshipStatus(friend.friendship_status)
+  );
+  const accepted = await showConfirmModal({
+    title: `${sender} asks you to record €${claim.amount.toFixed(2)} to them`,
+    body: `${claim.note ? `“${claim.note}”\n\n` : ""}If you accept, you sign a record that you owe ${sender} €${claim.amount.toFixed(2)}${isFriend ? "" : ", and you become friends"}.`,
+    confirmLabel: "Accept",
+    variant: ConfirmVariant.SUCCESS,
+  });
+  if (accepted) {
+    await completePendingClaim();
+    return;
+  }
+  setPendingClaim(null);
+};
+
+// Opening a record link: take it out of the URL (it holds the secret), then
+// act on it on an existing account, or after the welcome screen.
+const takeClaimFromUrl = async () => {
+  const claim = parseClaimHash(window.location.hash);
+  if (!claim) return false;
+  setPendingClaim(claim);
+  if (await hasUserData()) {
+    history.replaceState(null, "", `${window.location.pathname}#tally`);
+    if (claim.isRequest) {
+      await loadPage(parseRoute());
+      await confirmPendingRequest();
+    } else {
+      await completePendingClaim();
+    }
+  } else {
+    window.location.replace(`${window.location.pathname}#welcome`);
+  }
+  return true;
+};
+
 const loadActiveRoute = async () => {
+  if (await takeClaimFromUrl()) return;
   const parsedRoute = parseRoute();
   const resolvedRoute = await resolveRouteForUserState(parsedRoute);
   if (!resolvedRoute) return;

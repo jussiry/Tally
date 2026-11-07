@@ -23,21 +23,24 @@ const expand = (title) => {
 
 const collapse = (title) => title.classList.remove("is-expanded");
 
+/** @param {Event} event */
+const titleOf = (event) => /** @type {Element} */ (event.target).closest?.(".subpage-title");
+
 export const setupSubpageTitleExpand = () => {
   const canHover = window.matchMedia("(hover: hover)").matches;
   document.addEventListener("pointerover", (event) => {
-    const title = event.target.closest?.(".subpage-title");
+    const title = titleOf(event);
     if (!title) return;
     if (isTruncated(title)) title.classList.add("is-truncated");
     if (canHover && event.pointerType === "mouse") expand(title);
   });
   document.addEventListener("pointerout", (event) => {
-    const title = event.target.closest?.(".subpage-title");
-    if (!title || event.pointerType !== "mouse" || title.contains(event.relatedTarget)) return;
+    const title = titleOf(event);
+    if (!title || event.pointerType !== "mouse" || title.contains(/** @type {Node | null} */ (event.relatedTarget))) return;
     collapse(title);
   });
   document.addEventListener("click", (event) => {
-    const title = event.target.closest?.(".subpage-title");
+    const title = titleOf(event);
     document.querySelectorAll(".subpage-title.is-expanded").forEach((open) => {
       if (open !== title) collapse(open);
     });

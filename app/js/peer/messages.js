@@ -25,6 +25,13 @@ export const MessageType = Object.freeze({
   REACTIVATION_RESPONSE: "reactivation_response",
   // Self-addressed: the author deleted their history with a deactivated friend.
   HISTORY_DELETED: "friendship_history_deleted",
+  // Self-addressed, for records by link (TIP-4; commands/offline-claim.js):
+  // a link the author shared (a record to send or a request), its withdrawal,
+  // and a request accepted from someone's link, to be paid once they accept
+  // the friendship.
+  OFFLINE_CLAIM: "offline_claim",
+  OFFLINE_CLAIM_REVOKED: "offline_claim_revoked",
+  LINK_PAYMENT: "link_payment",
   // Which events the author wants as OS notifications; see notify/notification-policy.js.
   NOTIFICATION_PREFS: "notification_prefs",
   PING: "ping",

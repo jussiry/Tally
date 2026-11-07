@@ -132,6 +132,102 @@ export const getAllLedgerEntries = (
 // Derived queries
 // ---------------------------------------------------------------------------
 
+export const ClaimDirection = Object.freeze({
+  /** An invitation: opening it makes the two friends, with no record. */
+  FRIEND: "friend",
+  /** The link's author owes: opening it brings a record from the author. */
+  SEND: "send",
+  /** The link's author asks: opening it and accepting sends the author a record. */
+  REQUEST: "request",
+});
+
+export interface OpenOfflineClaim {
+  claim_id: string;
+  direction: string;
+  /** SHA-256 hex of the link's secret. */
+  commitment: string;
+  /** The secret itself, so this user can share the link again. */
+  secret: string;
+  amount_eur: number;
+  note: string;
+  recipient_name: string;
+  created_at: string;
+}
+
+// Claim ids that already have their record, in either direction.
+const settledClaimIds = (ledger: LedgerEntryModel[], myId: string): Set<string> => {
+  const settled = new Set<string>();
+  ledger.forEach((entry) => {
+    const claimId = entry.payload?.claim_id;
+    if (typeof claimId !== "string" || !claimId) return;
+    if (entry.type === MessageType.TRANSACTION_CREATED && (entry.from_user_id === myId || entry.to_user_id === myId)) {
+      settled.add(claimId);
+    }
+    if (entry.type === MessageType.OFFLINE_CLAIM_REVOKED && entry.from_user_id === myId) {
+      settled.add(claimId);
+    }
+  });
+  return settled;
+};
+
+const isSelfEntry = (entry: LedgerEntryModel, myId: string, type: string): boolean =>
+  entry.type === type && entry.from_user_id === myId && entry.to_user_id === myId;
+
+// Links this user shared for someone not on Tally yet (TIP-4). A link is a
+// self-addressed entry; it stays open until the user withdraws it, until the
+// transaction_created carrying its claim_id exists, or, for an invitation,
+// until it is used (also an offline_claim_revoked). Newest first.
+export const getOpenOfflineClaims = (
+  ledger: LedgerEntryModel[] | null | undefined,
+  myId: string
+): OpenOfflineClaim[] => {
+  if (!Array.isArray(ledger)) return [];
+  const settled = settledClaimIds(ledger, myId);
+  return ledger
+    .filter((entry) => isSelfEntry(entry, myId, MessageType.OFFLINE_CLAIM))
+    .filter((entry) => !settled.has(String(entry.payload?.claim_id)))
+    .map((entry) => {
+      const p = entry.payload || {};
+      return {
+        claim_id: String(p.claim_id),
+        direction: (Object.values(ClaimDirection) as unknown[]).includes(p.direction)
+          ? String(p.direction)
+          : ClaimDirection.SEND,
+        commitment: String(p.commitment),
+        secret: typeof p.secret === "string" ? p.secret : "",
+        amount_eur: normalizeCurrencyAmount(p.amount_eur, 0),
+        note: typeof p.note === "string" ? p.note : "",
+        recipient_name: typeof p.recipient_name === "string" ? p.recipient_name : "",
+        created_at: entry.originated_at || entry.timestamp,
+      };
+    });
+};
+
+export interface PendingLinkPayment {
+  claim_id: string;
+  amount_eur: number;
+  note: string;
+}
+
+// Requests this user accepted from someone's link and hasn't paid yet: the
+// record goes out once that person accepts the friendship.
+export const getPendingLinkPayments = (
+  ledger: LedgerEntryModel[] | null | undefined,
+  myId: string,
+  friendId: string
+): PendingLinkPayment[] => {
+  if (!Array.isArray(ledger)) return [];
+  const settled = settledClaimIds(ledger, myId);
+  return ledger
+    .filter((entry) => isSelfEntry(entry, myId, MessageType.LINK_PAYMENT))
+    .filter((entry) => entry.payload?.friend_id === friendId && !settled.has(String(entry.payload?.claim_id)))
+    .map((entry) => ({
+      claim_id: String(entry.payload.claim_id),
+      amount_eur: normalizeCurrencyAmount(entry.payload.amount_eur, 0),
+      note: typeof entry.payload.note === "string" ? entry.payload.note : "",
+    }));
+};
+
 export interface OpenPaymentRequest {
   /** The request's `request_id` — what a response or cancel refers to. */
   id: string;
@@ -471,6 +567,20 @@ const VALUE_RULES: Record<string, (payload: Record<string, unknown>) => boolean>
   // The embedded history is vetted entry by entry on receipt (verifyReactivationHistory).
   [MessageType.REACTIVATION_REQUEST]: (p) =>
     Array.isArray(p.history) && isAbsentOrNonNegativeAmount(p.trust_credit_limit_eur),
+  // A friend invitation carries no amount; a record sent or requested does.
+  [MessageType.OFFLINE_CLAIM]: (p) =>
+    typeof p.claim_id === "string" &&
+    p.claim_id.length > 0 &&
+    typeof p.commitment === "string" &&
+    /^[0-9a-f]{64}$/.test(p.commitment) &&
+    (p.direction === "friend" || isPositiveAmount(p.amount_eur)),
+  [MessageType.OFFLINE_CLAIM_REVOKED]: (p) => typeof p.claim_id === "string" && p.claim_id.length > 0,
+  [MessageType.LINK_PAYMENT]: (p) =>
+    typeof p.claim_id === "string" &&
+    p.claim_id.length > 0 &&
+    typeof p.friend_id === "string" &&
+    p.friend_id.length > 0 &&
+    isPositiveAmount(p.amount_eur),
   [MessageType.HISTORY_DELETED]: (p) => typeof p.friend_id === "string" && p.friend_id.length > 0,
   // Not a money value, but readers trust the shape: a list of type names.
   // `choices`, when present, maps type names to on/off.
