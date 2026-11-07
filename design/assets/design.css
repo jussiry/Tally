@@ -153,7 +153,6 @@ dt .graph-open-btn { width: 1.35em; height: 1.35em; margin-left: 0.4em; }
 #topbar .brand a { color: var(--text); text-decoration: none; }
 #topbar .tagline { color: var(--muted); font-size: 13px; }
 #topbar .nav-toggle {
-  margin-left: auto;
   display: none;
   background: none;
   border: 1px solid var(--border-2);

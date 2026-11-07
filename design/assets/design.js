@@ -34,10 +34,11 @@
   // ---- Top bar ----------------------------------------------------------
   var topbar = document.createElement("header");
   topbar.id = "topbar";
+  // The toggle sits on the left, next to the sidebar it opens.
   topbar.innerHTML =
+    '<button class="nav-toggle" type="button" aria-label="Toggle navigation">☰</button>' +
     '<span class="brand"><a href="index.html">Design</a></span>' +
-    '<span class="tagline">Tally — system design &amp; docs</span>' +
-    '<button class="nav-toggle" type="button" aria-label="Toggle navigation">☰</button>';
+    '<span class="tagline">Tally — system design &amp; docs</span>';
 
   // ---- Sidebar table of contents ---------------------------------------
   // Groups fold to just their header, except the group containing the current
