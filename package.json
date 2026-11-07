@@ -20,7 +20,8 @@
     "test:notification-choices": "node tests/notification-choices/run.mjs",
     "test:push-optin": "node tests/push-optin/run.cjs",
     "test:recurring-payments": "node tests/recurring-payments/run.mjs",
-    "test:push-reminders": "node tests/push-reminders/run.cjs"
+    "test:push-reminders": "node tests/push-reminders/run.cjs",
+    "test:app-update": "npm run build && node tests/app-update/run.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

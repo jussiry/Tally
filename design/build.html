@@ -115,7 +115,9 @@
       as one piece of state (a nav badge, a settings banner, a toast), and only
       when the user accepts does the app post <code>SKIP_WAITING</code> and
       reload. A refresh therefore never lands in the middle of recording a
-      transaction.
+      transaction. A newer deploy can replace the waiting worker, so the app
+      always activates the <em>current</em> waiting one, and reloads anyway if
+      none takes over within a few seconds (<code>tests/app-update/run.mjs</code>).
     </p>
     <p>
       <code>app/sw-crypto-entry.js</code> is the one place a real bundle is

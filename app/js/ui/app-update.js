@@ -23,6 +23,7 @@ const UPDATE_CHECK_MIN_GAP_MS = 60 * 1000;
 
 let updateAvailable = false;
 let waitingWorker = null;
+let registration = null;
 let reloading = false;
 const listeners = new Set();
 
@@ -33,21 +34,33 @@ export const onUpdateChange = (callback) => {
   return () => listeners.delete(callback);
 };
 
+// A newer worker can replace the waiting one (two deploys before the user
+// updates): the browser discards the old one, so always track the latest.
 const setWaitingWorker = (worker) => {
-  if (!worker || updateAvailable) return;
+  if (!worker || worker === waitingWorker) return;
   waitingWorker = worker;
+  if (updateAvailable) return;
   updateAvailable = true;
   listeners.forEach((callback) => callback(true));
 };
 
+// If the worker never takes over (it was discarded, or the message got lost),
+// a reload still lands on the newest version: a worker waiting at load time
+// is activated by registerServiceWorker.
+const APPLY_FALLBACK_MS = 3000;
+
 export const applyUpdate = () => {
-  if (!waitingWorker) {
+  const worker = registration?.waiting || waitingWorker;
+  if (!worker || worker.state === "redundant") {
     window.location.reload();
     return;
   }
   // When the new worker activates it claims this client; controllerchange then
   // fires and we reload onto the fresh assets.
-  waitingWorker.postMessage({ type: "SKIP_WAITING" });
+  worker.postMessage({ type: "SKIP_WAITING" });
+  window.setTimeout(() => {
+    if (!reloading) window.location.reload();
+  }, APPLY_FALLBACK_MS);
 };
 
 /**
@@ -59,7 +72,7 @@ export const registerServiceWorker = async () => {
   if (!("serviceWorker" in navigator)) return;
 
   try {
-    const registration = await navigator.serviceWorker.register("sw.js", {
+    registration = await navigator.serviceWorker.register("sw.js", {
       updateViaCache: "none",
     });
 
@@ -104,7 +117,7 @@ export const registerServiceWorker = async () => {
     // conditional fetch of sw.js, throttled here so focus churn can't spam it.
     let lastCheck = Date.now();
     const checkForUpdate = () => {
-      if (updateAvailable || Date.now() - lastCheck < UPDATE_CHECK_MIN_GAP_MS) return;
+      if (Date.now() - lastCheck < UPDATE_CHECK_MIN_GAP_MS) return;
       lastCheck = Date.now();
       registration.update().then(surfaceWaiting, () => {});
     };
