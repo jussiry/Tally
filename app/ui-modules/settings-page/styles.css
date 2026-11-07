@@ -173,12 +173,13 @@
 }
 
 /* STUN section is intentionally lower-key than relays — most users never
-   touch it. Dim the heading and lead with an explanatory hint. */
+   touch it. Dim the heading. */
 .settings-subtitle--muted {
   opacity: 0.7;
 }
 
-.settings-stun-hint {
+/* One-line explainer at the top of a server section. */
+.settings-section-hint {
   margin: 4px 12px 8px;
   font-size: 12px;
   line-height: 1.4;

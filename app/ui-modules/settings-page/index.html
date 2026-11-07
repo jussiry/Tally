@@ -56,6 +56,11 @@
 
   <h3 class="settings-subtitle">Relay servers</h3>
   <div class="settings-relays surface-box">
+    <p class="settings-section-hint">
+      Relays help your devices find your friends' devices, and hold encrypted
+      messages until a friend comes online. Using several keeps you reachable
+      if one goes down.
+    </p>
     <ul class="relay-list" data-list="relay-list"></ul>
     <div class="relay-add">
       <button class="relay-add-open" type="button" data-action="open-add-relay" aria-label="Add relay server">
@@ -116,9 +121,9 @@
 
   <h3 class="settings-subtitle settings-subtitle--muted">STUN servers</h3>
   <div class="settings-relays settings-stun surface-box">
-    <p class="settings-stun-hint">
-      Used to set up direct connections between devices across networks. The
-      default works for almost everyone — change it only if you run your own.
+    <p class="settings-section-hint">
+      Used to set up direct connections between devices. The default works for
+      almost everyone.
     </p>
     <ul class="relay-list" data-list="stun-list"></ul>
     <div class="relay-add">
