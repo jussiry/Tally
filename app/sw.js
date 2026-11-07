@@ -175,13 +175,40 @@ const resolveNotification = async (payload) => {
       // `tag` is the peer message id; a local notification for the same
       // message (app open but hidden) uses it too, so they replace each other.
       const tag = typeof parsed.tag === "string" ? parsed.tag : undefined;
-      return { title: parsed.title || APP_NAME, body: parsed.body, tag };
+      return { title: parsed.title || APP_NAME, body: parsed.body, tag, waiting: parsed.waiting === true };
     }
   } catch {
     // Any failure → generic notification below.
   }
   return GENERIC_NOTIFICATION;
 };
+
+// The app icon's number. Browsers can't read it back, so the count lives in
+// IndexedDB beside the state; the open app writes the exact count there
+// (js/ui/app-badge.js) and a push for an item waiting for an answer adds one.
+const APP_BADGE_COUNT_KEY = "app_badge_count";
+
+const addToAppBadge = () =>
+  new Promise((resolve) => {
+    try {
+      const request = indexedDB.open(DB_NAME);
+      request.onerror = () => resolve();
+      request.onsuccess = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) return resolve();
+        const store = db.transaction(STORE_NAME, "readwrite").objectStore(STORE_NAME);
+        const get = store.get(APP_BADGE_COUNT_KEY);
+        get.onerror = () => resolve();
+        get.onsuccess = () => {
+          const count = (Number(get.result) || 0) + 1;
+          store.put(count, APP_BADGE_COUNT_KEY);
+          Promise.resolve(self.navigator.setAppBadge?.(count)).catch(() => {}).then(() => resolve());
+        };
+      };
+    } catch {
+      resolve();
+    }
+  });
 
 self.addEventListener("push", (event) => {
   let payload = null;
@@ -193,7 +220,10 @@ self.addEventListener("push", (event) => {
 
   event.waitUntil(
     (async () => {
-      const { title, body, tag } = await resolveNotification(payload);
+      const { title, body, tag, waiting } = await resolveNotification(payload);
+      // The same message can arrive once per relay; count it only once.
+      const shown = tag ? await self.registration.getNotifications({ tag }) : [];
+      if (waiting && shown.length === 0) await addToAppBadge();
       await self.registration.showNotification(title, {
         body,
         ...(tag ? { tag } : {}),

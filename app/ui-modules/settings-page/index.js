@@ -19,6 +19,7 @@ import {
   canPromptInstall,
   promptInstall,
   installInstructions,
+  isSafari,
   onInstallChange,
 } from "../../js/ui/app-install.js";
 import { isSameRelayUrl, normalizeRelayUrl } from "../../js/utils/relay-url.js";
@@ -28,6 +29,7 @@ import {
   enablePush,
   disablePush,
 } from "../../js/push/push-subscribe.js";
+import { requestPersistentStorage } from "../../js/utils/persist-storage.js";
 import { RelayStatus } from "../../js/signaling/relay-status-registry.js";
 
 // "Install on home screen" — shown while Tally runs in a browser tab. Opens
@@ -36,6 +38,14 @@ import { RelayStatus } from "../../js/signaling/relay-status-registry.js";
 const bindInstallBanner = (root) => {
   const banner = root.querySelector('[data-bind="install-banner"]');
   if (!banner) return;
+  const urgent = isSafari();
+  banner.classList.toggle("settings-install--urgent", urgent);
+  const sub = banner.querySelector('[data-bind="install-reason"]');
+  if (sub) {
+    sub.textContent = urgent
+      ? "Install the app to ensure it keeps functioning. Safari may delete data on web sites that are not visited often."
+      : "For ease of access and more reliable functionality.";
+  }
   const render = () => {
     banner.hidden = isRunningInstalled();
   };
@@ -395,6 +405,7 @@ const bindNotifySection = async (root) => {
     onChange: async (isChecked) => {
       if (isSyncing) return;
       const result = isChecked ? await enablePush() : await disablePush();
+      if (result === PushState.ENABLED) void requestPersistentStorage();
 
       if (result === PushState.DENIED) {
         setHint("Notifications are blocked in your browser settings.");

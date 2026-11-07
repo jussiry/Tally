@@ -267,6 +267,17 @@ const HINT_BUILDERS = {
   },
 };
 
+// Kinds that wait for the recipient's answer. Their hint carries
+// `waiting: true`, so the service worker adds one to the app icon's number
+// (sw.js; the open app recounts exactly, js/ui/app-badge.js).
+const WAITING_TYPES = new Set([
+  MessageType.FRIEND_REQUEST,
+  MessageType.PAYMENT_REQUEST,
+  MessageType.TRUST_LIMIT_SUGGESTION,
+  MessageType.NAME_CHANGED,
+  MessageType.REACTIVATION_REQUEST,
+]);
+
 // True when a message type can raise an OS notification on the recipient.
 export const isOsNotifiableType = (type) => Boolean(HINT_BUILDERS[type]);
 
@@ -289,7 +300,8 @@ export const buildOsNotificationHint = (message, { senderName, recipientTypes } 
   if (!enabled.includes(message.type)) return null;
   const name = (typeof senderName === "string" && senderName.trim()) || "A friend";
   const built = builder(message, name);
-  return built ? { ...built, tag: message.id } : null;
+  if (!built) return null;
+  return { ...built, tag: message.id, ...(WAITING_TYPES.has(message.type) ? { waiting: true } : {}) };
 };
 
 // Shown when the service worker receives a push but cannot decrypt the hint

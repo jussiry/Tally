@@ -11,6 +11,8 @@ says where the browser's own menu item is, based on the user agent.
 @category ui
 */
 
+import { requestPersistentStorage } from "../utils/persist-storage.js";
+
 let deferredPrompt = null;
 let installed = false;
 const listeners = new Set();
@@ -25,6 +27,7 @@ window.addEventListener("beforeinstallprompt", (event) => {
 window.addEventListener("appinstalled", () => {
   installed = true;
   deferredPrompt = null;
+  void requestPersistentStorage();
   notify();
 });
 
@@ -97,6 +100,14 @@ const INSTRUCTIONS = {
     "Firefox on desktop can't install web apps. Open Tally in Chrome or Edge to install it, or use it on your phone.",
   other:
     "Look in your browser's menu for **Install app** or **Add to Home Screen**. If there isn't one, try Chrome, Edge or Safari.",
+};
+
+// Safari (iOS and macOS) may delete storage of sites not visited for a while;
+// home screen and Dock apps are exempt. Other iOS browsers say CriOS etc.
+export const isSafari = () => {
+  const browser = detectBrowser();
+  if (browser === "mac-safari") return true;
+  return browser === "ios" && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(navigator.userAgent);
 };
 
 export const installInstructions = () => INSTRUCTIONS[detectBrowser()];

@@ -216,6 +216,19 @@ export const saveAppState = async (state: RootState): Promise<RootState> => {
   return state;
 };
 
+// The number on the installed app's icon, kept beside the state so the
+// service worker can add to it when a push arrives (sw.js reads the same key;
+// browsers can set the badge but not read it back).
+export const APP_BADGE_COUNT_KEY = "app_badge_count";
+
+export const saveAppBadgeCount = async (count: number): Promise<void> => {
+  await withStore<IDBValidKey>(
+    "readwrite",
+    (store) => store.put(count, APP_BADGE_COUNT_KEY),
+    { timeoutMs: APP_STATE_WRITE_TIMEOUT_MS }
+  );
+};
+
 export const clearAppState = async (): Promise<void> => {
   await withStore<undefined>(
     "readwrite",

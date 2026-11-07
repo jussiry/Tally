@@ -49,7 +49,9 @@ import { getSlideDirection, swapPage } from "./ui/page-transitions.js";
 import { getAppVersion } from "./version.js";
 import { initSwipeNavigation } from "./ui/swipe.js";
 import { registerServiceWorker, onUpdateChange } from "./ui/app-update.js";
-import "./ui/app-install.js"; // listens for beforeinstallprompt from app start
+import { isRunningInstalled } from "./ui/app-install.js"; // also listens for beforeinstallprompt from start
+import { updateAppBadge } from "./ui/app-badge.js";
+import { requestPersistentStorage } from "./utils/persist-storage.js";
 import { showNotification } from "./ui/notifications.js";
 import { resyncPushSubscription } from "./push/push-subscribe.js";
 
@@ -292,7 +294,10 @@ const loadPage = async (route) => {
 
     const pageView = createPageView(html);
     setRouteUiState(route);
-    if (data) updateNavBadges(navButtons, data);
+    if (data) {
+      updateNavBadges(navButtons, data);
+      updateAppBadge(data);
+    }
 
     if (route.type === Route.WELCOME) {
       bindWelcome(pageView, {
@@ -646,6 +651,7 @@ const initApp = async () => {
     scheduleRouteRefresh();
   });
   void registerServiceWorker();
+  if (isRunningInstalled()) void requestPersistentStorage();
   // Re-publish an existing push subscription to the relays (no-op unless the
   // user previously opted in on this device).
   void resyncPushSubscription();

@@ -500,3 +500,9 @@
 .settings-install .settings-update-button {
   background: oklch(48% 0.14 120 / 0.25);
 }
+
+/* On Safari, unvisited sites' data may be deleted: installing is urgent. */
+.settings-install--urgent {
+  border: 1px solid oklch(55% 0.18 25 / 0.35);
+  background: oklch(62% 0.18 25 / 0.12);
+}

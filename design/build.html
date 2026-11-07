@@ -126,7 +126,21 @@
       replays on that click to open the browser's own install dialog. Safari
       and Firefox have no install API, so the click shows where that browser's
       menu item is instead. On iOS, installing is also what enables
-      <a href="tip-5-os-notifications.html">push notifications</a>.
+      <a href="tip-5-os-notifications.html">push notifications</a>. On
+      Safari the box is red: Safari may delete the storage of sites not
+      visited for a while, and home screen apps are exempt.
+    </p>
+    <p>
+      Installing, and turning on notifications, are when the app asks
+      <code>navigator.storage.persist()</code> to keep its IndexedDB
+      (<code>js/utils/persist-storage.js</code>); browsers grant it more readily
+      then. The installed app shows on its icon how many items wait for an
+      answer, counting only kinds the user is notified about
+      (<code>js/ui/app-badge.js</code>). The open app recounts it from state
+      and saves the count in IndexedDB; while the app is closed, the service
+      worker adds one for each push whose encrypted hint is marked
+      <code>waiting</code>, once per message (<code>sw.js</code>). Browsers can
+      set the badge but not read it, hence the saved count.
     </p>
     <p>
       <code>app/sw-crypto-entry.js</code> is the one place a real bundle is
