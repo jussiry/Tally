@@ -1,0 +1,100 @@
+.send-link-open {
+  display: grid;
+  gap: 12px;
+}
+
+.send-link-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.send-link-item {
+  --surface-radius: 16px;
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+  border: 1px solid rgba(17, 17, 17, 0.06);
+}
+
+.send-link-item-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  overflow-wrap: anywhere;
+}
+
+.send-link-item-note {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.send-link-item-note:empty {
+  display: none;
+}
+
+.send-link-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.send-link-action {
+  border: 1px solid rgba(17, 17, 17, 0.1);
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.send-link-action--danger {
+  color: var(--neg, #b0413e);
+}
+
+.send-link-status {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.send-link-status:empty {
+  display: none;
+}
+
+.send-link-open[hidden] {
+  display: none;
+}
+
+/* Plain left-aligned fields, framed like the note field. */
+.send-link .send-form .form-input {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  text-align: left;
+  font-size: 18px;
+}
+
+/* "Not on Tally yet?" — the way in from Add a friend, Send and Request. */
+.link-record-cta {
+  --surface-radius: 16px;
+  display: grid;
+  gap: 2px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  color: var(--ink);
+  text-decoration: none;
+  border: 1px solid rgba(17, 17, 17, 0.06);
+}
+
+.link-record-cta span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* An invitation has no amount or note. */
+.send-link [data-section="record-fields"][hidden] {
+  display: none;
+}

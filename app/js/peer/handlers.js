@@ -37,12 +37,18 @@ import { shareOsNotifyTypesWith } from "../notify/notification-prefs.js";
 import { MessageType } from "./messages.js";
 import { describeSchedule, normalizeSchedule } from "../recurring.js";
 import {
+  appendLedgerEntryFromMessage,
   deriveTallyFromLedger,
   getFriendshipActivity,
+  getOpenOfflineClaims,
+  getPendingLinkPayments,
+  ClaimDirection,
   mergeVerifiedEntries,
   verifyReactivationHistory,
 } from "../ledger.js";
 import { asTrimmedString, createId } from "../state-utils.js";
+import { sha256HexOfString } from "../crypto/secp256k1.js";
+import { appendSelfLedgerEntry } from "./self-entry.js";
 import {
   FriendshipStatus,
   PENDING_CREDIT_LIMIT_LOWERED,
@@ -76,9 +82,92 @@ const warnIllegalPeerEntry = (entry) => {
 const notification = (text, friendId, hash) => ({ text, friendId, hash });
 const friendNotification = (text, friendId) => notification(text, friendId, `friend/${friendId}`);
 
+// TIP-4: records by link. A friend request carrying the secret of one of our
+// open links comes from the person the link was for. We accept the friendship
+// (if it isn't already) with no prompt; for a record we owe, we also send it,
+// and an invitation is then used up.
+// For a request, their client sends the record once it sees our accept.
+// Records by link take their transaction id from the link, so a second device
+// doing the same is deduplicated, and the link closes once the record is in
+// the ledger (getOpenOfflineClaims).
+const findClaimForProof = async (state, proof) => {
+  if (typeof proof !== "string" || !proof) return null;
+  const commitment = await sha256HexOfString(proof);
+  return (
+    getOpenOfflineClaims(state.ledger, state.user.id).find((claim) => claim.commitment === commitment) ||
+    null
+  );
+};
+
+/** Sends the record behind a link to an accepted friend. Returns the message, or null. */
+export const sendLinkRecord = async (state, friendId, { claim_id, amount_eur, note }) => {
+  const txMsg = await queuePeerMessage(state, {
+    toUserId: friendId,
+    type: MessageType.TRANSACTION_CREATED,
+    payload: {
+      transaction_id: `tx_${claim_id}`,
+      amount_eur,
+      date: new Date().toISOString().slice(0, 10),
+      note: note || "record signed",
+      message: note,
+      claim_id,
+    },
+  });
+  if (!txMsg) return null;
+  appendLedgerEntryFromMessage(state, txMsg);
+  routeOutboundEntry(state, txMsg);
+  return txMsg;
+};
+
+const finaliseOfflineClaim = async (state, entry, claim, requesterName) => {
+  const claimantId = entry.from_user_id;
+  const existingFriend = getFriend(state, claimantId);
+  if (isDeactivatedFriendshipStatus(existingFriend?.friendship_status)) return null;
+
+  if (!isAcceptedFriendshipStatus(existingFriend?.friendship_status)) {
+    const friend = ensureFriend(state, claimantId, requesterName, {
+      friendshipStatus: FriendshipStatus.ACCEPTED,
+    });
+    if (!friend) return null;
+    friend.friendship_status = FriendshipStatus.ACCEPTED;
+    friend.person_name = requesterName;
+    ensureContact(state, claimantId, requesterName);
+    const acceptMsg = await queuePeerMessage(state, {
+      toUserId: claimantId,
+      type: MessageType.FRIEND_ACCEPT,
+      payload: { accepter_name: state.user.name, trust_credit_limit_eur: 0 },
+    });
+    if (acceptMsg) appendLedgerEntryFromMessage(state, acceptMsg);
+    await shareOsNotifyTypesWith(state, claimantId);
+  }
+
+  if (claim.direction === ClaimDirection.FRIEND) {
+    // Nothing more to send: close the invitation.
+    await appendSelfLedgerEntry(state, MessageType.OFFLINE_CLAIM_REVOKED, { claim_id: claim.claim_id });
+    return friendNotification(`${requesterName} accepted your invitation`, claimantId);
+  }
+  const amountText = `€${claim.amount_eur.toFixed(2)}`;
+  if (claim.direction === ClaimDirection.REQUEST) {
+    return friendNotification(`${requesterName} accepted your ${amountText} request`, claimantId);
+  }
+  if (!(await sendLinkRecord(state, claimantId, claim))) return null;
+  return friendNotification(`${requesterName} claimed the ${amountText} you recorded`, claimantId);
+};
+
+// Requests accepted from this friend's link, paid now that they accepted us.
+const sendPendingLinkPayments = async (state, friendId) => {
+  for (const payment of getPendingLinkPayments(state.ledger, state.user.id, friendId)) {
+    await sendLinkRecord(state, friendId, payment);
+  }
+};
+
 const applyInboundFriendRequest = async (state, entry) => {
   const requesterName =
     asTrimmedString(entry.payload?.requester_name) || entry.from_user_id;
+  const claim = await findClaimForProof(state, entry.payload?.claim_proof);
+  if (claim) {
+    return finaliseOfflineClaim(state, entry, claim, requesterName);
+  }
   const existingFriend = getFriend(state, entry.from_user_id);
 
   if (existingFriend?.friendship_status === FriendshipStatus.PENDING_OUTGOING) {
@@ -171,6 +260,7 @@ const applyInboundFriendAccept = async (state, entry) => {
     friend.trust_credit_limit_eur = agreedLimit;
   }
 
+  await sendPendingLinkPayments(state, entry.from_user_id);
   if (wasAccepted) {
     return null;
   }

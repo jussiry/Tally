@@ -1,0 +1,66 @@
+<div class="send-content send-link">
+  <div class="request-tabs" data-section="link-direction">
+    <button class="request-tab" type="button" data-direction="friend">
+      <svg class="request-tab-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <use href="#icon-plus" />
+      </svg>
+      Friend
+    </button>
+    <button class="request-tab request-tab--active" type="button" data-direction="send">
+      <svg class="request-tab-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <use href="#icon-send" />
+      </svg>
+      Send
+    </button>
+    <button class="request-tab" type="button" data-direction="request">
+      <svg class="request-tab-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <use href="#icon-request" />
+      </svg>
+      Request
+    </button>
+  </div>
+  <div class="content-card trust-hero send-card">
+    <form class="send-form" aria-label="Record by link" data-form="send-link">
+      <p class="form-hint" data-bind="link-hint"></p>
+      <label class="form-field">
+        <span class="form-label">Their name</span>
+        <input class="form-input" type="text" maxlength="40" autocomplete="off" data-bind="claim-name" />
+      </label>
+      <label class="form-field" data-section="record-fields">
+        <span class="form-label" data-bind="amount-label"></span>
+        <input class="form-input" type="number" inputmode="decimal" min="0" step="1" placeholder="0" data-bind="claim-amount" />
+      </label>
+      <label class="form-field" data-section="record-fields">
+        <textarea class="form-textarea" rows="1" placeholder="because" data-bind="claim-note"></textarea>
+      </label>
+      <p class="form-error" data-bind="claim-error" hidden></p>
+      <button class="primary-button" type="submit" data-bind="claim-submit">
+        <svg class="primary-button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <use href="#icon-send" />
+        </svg>
+        <span class="primary-button-label" data-bind="submit-label"></span>
+      </button>
+    </form>
+  </div>
+
+  <div class="content-card send-card send-link-open" data-section="open-claims" hidden>
+    <div class="hero-label">Waiting for them</div>
+    <ul class="send-link-list" data-list="open-claims"></ul>
+  </div>
+
+  <template data-template="open-claim">
+    <li class="send-link-item surface-box">
+      <div class="send-link-item-head">
+        <strong data-bind="name"></strong>
+        <span data-bind="amount"></span>
+      </div>
+      <div class="send-link-item-note" data-bind="note"></div>
+      <div class="send-link-actions">
+        <button class="send-link-action" type="button" data-action="share">Share link</button>
+        <button class="send-link-action" type="button" data-action="copy">Copy link</button>
+        <button class="send-link-action send-link-action--danger" type="button" data-action="withdraw">Withdraw</button>
+      </div>
+      <div class="send-link-status" data-bind="status" aria-live="polite"></div>
+    </li>
+  </template>
+</div>

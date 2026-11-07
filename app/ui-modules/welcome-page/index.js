@@ -9,11 +9,47 @@ import { initCheckToggle } from "../components/check-toggle.js";
 import { isValidNcryptsec } from "../../js/crypto/nip49.js";
 import { isNip07Available } from "../../js/crypto/key-provider.js";
 
+// A record link (TIP-4) opened without an account: say who invites, sends or
+// asks for what, and suggest the name the author knows the opener by.
+const showClaim = (root, claim, nameInput, createButton) => {
+  const titleEl = root.querySelector('[data-bind="welcome-title"]');
+  const claimEl = root.querySelector('[data-section="welcome-claim"]');
+  const claimTextEl = root.querySelector('[data-bind="welcome-claim-text"]');
+  const claimHowEl = root.querySelector('[data-bind="welcome-claim-how"]');
+  const introEl = root.querySelector('[data-section="welcome-intro"]');
+  const sender = claim.senderName || "A friend";
+  const amount = claim.amount ? `€${claim.amount.toFixed(2)}` : "";
+  if (titleEl) {
+    titleEl.textContent = claim.isFriend
+      ? `${sender} invites you to Tally`
+      : claim.isRequest
+      ? `${sender} asks you to record ${amount} to them`
+      : amount
+      ? `${sender} recorded ${amount} to you`
+      : `${sender} recorded a favour to you`;
+  }
+  if (claimTextEl) claimTextEl.textContent = claim.note ? `“${claim.note}”` : "";
+  if (claimHowEl) {
+    claimHowEl.textContent = claim.isFriend
+      ? `Choose a name to become friends with ${sender}.`
+      : claim.isRequest
+      ? `Choose a name to accept. You then owe ${sender} ${amount}; the record is sent the next time their app is online.`
+      : "Choose a name to claim the record; it arrives the next time the sender's app is online.";
+  }
+  if (claimEl) claimEl.hidden = false;
+  if (introEl) introEl.hidden = true;
+  if (claim.recipientName && !nameInput.value) nameInput.value = claim.recipientName;
+  createButton.textContent = claimButtonLabel(claim);
+};
+
+const claimButtonLabel = (claim) =>
+  claim.isFriend ? "Create a user" : claim.isRequest ? "Create a user and accept" : "Create a user and claim";
+
 /**
  * @param {any} root
- * @param {{ onCreateUser?: Function }} [options]
+ * @param {{ onCreateUser?: Function, claim?: any }} [options]
  */
-export const bindWelcome = (root, { onCreateUser } = {}) => {
+export const bindWelcome = (root, { onCreateUser, claim = null } = {}) => {
   const formElement = root.querySelector('[data-form="welcome"]');
   const nameInput = root.querySelector('[data-bind="welcome-name"]');
   const errorElement = root.querySelector('[data-bind="welcome-error"]');
@@ -29,6 +65,8 @@ export const bindWelcome = (root, { onCreateUser } = {}) => {
     return;
   }
 
+  if (claim) showClaim(root, claim, nameInput, createButton);
+
   // The extension option is only meaningful when a NIP-07 signer is installed.
   if (nip07Panel && isNip07Available()) {
     nip07Panel.hidden = false;
@@ -38,7 +76,7 @@ export const bindWelcome = (root, { onCreateUser } = {}) => {
     checked: false,
     onChange: (isChecked) => {
       if (keyPanel) keyPanel.hidden = !isChecked;
-      createButton.textContent = isChecked ? "Login" : "Create a user";
+      createButton.textContent = isChecked ? "Login" : claim ? claimButtonLabel(claim) : "Create a user";
       if (isChecked && passphraseInput) {
         setTimeout(() => passphraseInput.focus(), 0);
       }

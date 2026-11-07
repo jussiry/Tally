@@ -17,4 +17,5 @@ export const Route = Object.freeze({
   TRUST: "trust",
   TRANSFER: "transfer",
   NOTIFICATIONS: "notifications",
+  SEND_LINK: "send-link",
 });

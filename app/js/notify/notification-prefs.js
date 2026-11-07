@@ -23,12 +23,10 @@ All helpers mutate `state` in place; the caller persists.
 
 import { MessageType } from "../peer/messages.js";
 import { queuePeerMessage } from "../peer/outbox.js";
-import { signTallyMessage } from "../peer/authorship.js";
-import { createKeyProviderFromState } from "../crypto/key-provider.js";
+import { appendSelfLedgerEntry } from "../peer/self-entry.js";
 import { appendLedgerEntryFromMessage } from "../ledger.js";
-import { createPeerMessageModel } from "../models/data-model.js";
 import { isPeerEligibleFriendshipStatus } from "../utils/friendships.js";
-import { createId, hasUser } from "../state-utils.js";
+import { hasUser } from "../state-utils.js";
 import {
   collectOsNotifyChoicesByAuthor,
   normalizeOsNotifyChoices,
@@ -47,33 +45,10 @@ const queuePrefsTo = async (state, friendId, payload) => {
   if (message) appendLedgerEntryFromMessage(state, message);
 };
 
-// Signed, ledger-only entry addressed to the user itself; never queued, since
-// self-sync already copies new ledger entries to the user's other devices.
-const appendSelfPrefsEntry = async (state, payload) => {
-  const unsigned = createPeerMessageModel({
-    id: createId("peer"),
-    type: MessageType.NOTIFICATION_PREFS,
-    from_user_id: state.user.id,
-    to_user_id: state.user.id,
-    created_at: new Date().toISOString(),
-    payload,
-  });
-  const keyProvider = createKeyProviderFromState(state);
-  let authorship = null;
-  if (keyProvider) {
-    try {
-      authorship = await signTallyMessage(unsigned, keyProvider);
-    } catch {
-      authorship = null;
-    }
-  }
-  appendLedgerEntryFromMessage(state, { ...unsigned, authorship });
-};
-
 export const publishOsNotifyChoices = async (state, choices) => {
   if (!hasUser(state)) return;
   const payload = prefsPayload(normalizeOsNotifyChoices(choices));
-  await appendSelfPrefsEntry(state, payload);
+  await appendSelfLedgerEntry(state, MessageType.NOTIFICATION_PREFS, payload);
   const friends = Array.isArray(state.user.friends) ? state.user.friends : [];
   for (const friend of friends) {
     if (isPeerEligibleFriendshipStatus(friend.friendship_status)) {

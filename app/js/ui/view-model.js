@@ -15,6 +15,7 @@ import { getMainRelayUrl } from "../utils/relay-url.js";
 import { getRelayStatus } from "../signaling/relay-status-registry.js";
 import {
   getLatestFriendshipDefaults,
+  getOpenOfflineClaims,
   getOpenPaymentRequests,
   getOpenReactivationRequests,
 } from "../ledger.js";
@@ -109,5 +110,6 @@ export const buildView = (state) => {
     // STUN servers hold no persistent connection, so (unlike relays) there is
     // no live status to surface — just the configured URL list.
     stunServers: Array.isArray(state.stun_servers) ? state.stun_servers : [],
+    offlineClaims: getOpenOfflineClaims(state.ledger, user.id),
   };
 };

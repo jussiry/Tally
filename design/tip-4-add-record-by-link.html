@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TIP-4 Add record by link — Design</title>
+  <link rel="stylesheet" href="assets/design.css" />
+</head>
+<body>
+  <main class="page" data-status="proposal"
+    data-files="js/commands/offline-claim.js js/utils/claim-link.js js/peer/handlers.js js/peer/self-entry.js js/ledger.ts js/app.js ui-modules/subpage/send-link.js ui-modules/welcome-page/index.js">
+<h1>TIP-4: Add Record by Link</h1>
+<div class="table-scroll"><table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody><tr><td>Number</td><td>TIP-4</td></tr><tr><td>Title</td><td>Add Record by Link</td></tr><tr><td>Status</td><td>Draft (v1 built)</td></tr><tr><td>Author</td><td>Jussi Rytkönen</td></tr><tr><td>Created</td><td>2026-06-02</td></tr></tbody></table></div>
+<hr />
+<h2>Summary</h2>
+<p>A user can <strong>invite</strong> someone who isn't on Tally yet as a friend, <strong>send</strong> them a record, or <strong>request</strong> one from them, with a link. The user shares the link any way they like — the phone's share sheet, a chat, a copied link — with their own words around it. Opening the link, on a new or an existing account, makes the two <a href="glossary.html#friend">friends</a> and, for a record sent or requested, adds the <a href="glossary.html#transaction">record</a>.</p>
+<p>No server takes part beyond the usual relays, no temporary keypair is needed, and every record is signed by the person who owes.</p>
+<hr />
+<h2>Motivation</h2>
+<p>A record otherwise needs both people on Tally and connected first. That misses the most common moment — "I owe you, let me note it down", or "you owe me for the tickets" — when the other person isn't on Tally yet. A link fits how people already share things, and it is more personal than a generated email: the sender writes their own message.</p>
+<p>An earlier draft sent the link by email through a Tally-run email service. Sharing the link directly is simpler, needs no server and no third-party email provider, and doesn't hand the link's secret to anyone else.</p>
+<hr />
+<h2>Key idea: a secret that proves "this link was for me"</h2>
+<p>The author picks a random secret <code>s</code> (32 bytes, base64url) and keeps only <code>h = SHA-256(s)</code> as the way to recognise it. <code>s</code> travels only in the link. The person who opens it proves the link was for them by sending <code>s</code> back in a friend request signed by their own key, so the author's client can accept that request without asking.</p>
+<p><strong>Only the person who owes signs a promise.</strong> For a record sent, that is the author, and their client sends the record once the link is opened. For a request, the link itself promises nothing: the opener agrees to the amount and their client signs the record.</p>
+<hr />
+<h2>The link</h2>
+<pre><code>https://app.tally.earth/#claim?x=friend|send|request&amp;c=&lt;link id&gt;&amp;k=&lt;author npub&gt;&amp;s=&lt;secret&gt;&amp;n=&lt;author name&gt;&amp;t=&lt;opener name&gt;&amp;a=&lt;amount&gt;&amp;m=&lt;note&gt;&amp;r=&lt;relay&gt;…</code></pre>
+<p>Everything is in the URL fragment, which browsers don't send to the server, so the secret stays out of server logs. For a request, <code>a</code> and <code>m</code> are what the opener signs, and <code>c</code> names the request so the author's client can close it. For a record sent they only let the welcome screen say what is coming. An invitation has neither (<code>js/utils/claim-link.js</code>).</p>
+<hr />
+<h2>Author: creating a link</h2>
+<p><em>Record by link</em> is reached from Add a friend (opening on Friend), Send and Request ("Not on Tally yet?"). The user picks Friend, Send or Request, enters a name — plus the amount and a note for a record — and gets a link to share. The client writes a signed, <strong>self-addressed</strong> ledger entry (<code>js/peer/self-entry.js</code>), which reaches the author's other devices through self-sync and never anyone else:</p>
+<pre><code>offline_claim (from = to = author) {
+  claim_id, direction: "friend" | "send" | "request", commitment: SHA-256(s), secret: s,
+  amount_eur, note, recipient_name
+}</code></pre>
+<p>The secret is kept so the link can be shared again from any of the author's devices. The page lists open links with Share, Copy and Withdraw; withdrawing writes a self-addressed <code>offline_claim_revoked</code>. A link is open until a <code>transaction_created</code> carrying its <code>claim_id</code> exists, in either direction; an invitation closes with an <code>offline_claim_revoked</code> once it is used (<code>getOpenOfflineClaims</code> in <code>js/ledger.ts</code>). Open links don't count in the tally.</p>
+<hr />
+<h2>Opener: opening a link</h2>
+<p>The app takes the link out of the URL at once (<code>js/app.js</code>), then:</p>
+<ul>
+  <li><strong>No account in this browser:</strong> the welcome screen says "Alice invites you to Tally", "Alice recorded €20 to you" or "Alice asks you to record €20 to them", shows the note, suggests the name Alice used, and offers "Create a user and claim" or "Create a user and accept". Logging in with an existing key works too.</li>
+  <li><strong>An account exists, invitation or record sent:</strong> it goes ahead at once; a record is added to that account.</li>
+  <li><strong>An account exists, request:</strong> the user is asked first ("If you accept, you sign a record that you owe Alice €20"), since accepting is a promise.</li>
+</ul>
+<p>Then <code>claimFromLink</code> (<code>js/commands/offline-claim.js</code>) sends the author a <code>friend_request</code> whose payload carries <code>claim_proof: s</code>. If the two are already friends or a request is pending, the proof goes in a request of its own. For an accepted request, the opener's client also writes a self-addressed <code>link_payment</code> entry (<code>claim_id</code>, friend, amount, note) — or, when the two are already friends, sends the record straight away.</p>
+<hr />
+<h2>Author's client: accepting</h2>
+<p>In <code>applyInboundFriendRequest</code> (<code>js/peer/handlers.js</code>), a request whose <code>SHA-256(claim_proof)</code> matches an open link is handled with no prompt: the friendship is accepted, if it isn't already.</p>
+<ul>
+  <li><strong>Invitation:</strong> nothing more; the invitation is used up.</li>
+  <li><strong>Record sent:</strong> the author's client sends the record.</li>
+  <li><strong>Request:</strong> nothing more. When the opener's client sees the accept (<code>applyInboundFriendAccept</code>), it sends the record for each open <code>link_payment</code> to that friend.</li>
+</ul>
+<p>Either way the record is an ordinary <code>transaction_created</code> with <code>transaction_id = "tx_" + claim_id</code> and the <code>claim_id</code>, so it passes the usual "accepted friends only" rule, closes the link, and is applied once even if two devices of the same user both send it. A deactivated friendship is left alone.</p>
+<hr />
+<h2>Leaked links</h2>
+<p>The secret is a bearer token: whoever holds the link can open it. The person sharing it decides the channel, and nothing else sees it.</p>
+<ul>
+  <li><strong>A record sent</strong> could be claimed by the wrong person. The author is told who claimed it ("Erik claimed the €20 you recorded").</li>
+  <li><strong>A request</strong> could be accepted by the wrong person, who then owes the author. Harmless to the author.</li>
+  <li><strong>An invitation</strong> could make the author friends with the wrong person, who shows up by their own chosen name. The author can deactivate the friendship.</li>
+</ul>
+<hr />
+<h2>Open questions</h2>
+<ol>
+  <li><strong>Confirm claims by hand?</strong> A setting to approve each claim of a record sent before it goes out.</li>
+  <li><strong>Expiry.</strong> Should links expire after N days, shortening the window a leaked link is useful?</li>
+  <li><strong>Used links.</strong> Opening a link that was already used or withdrawn sends a request the author ignores, and the opener isn't told. The author's client could answer with a short "not available" message.</li>
+  <li><strong>Several devices of the opener.</strong> The link is opened on one device; the others learn of the friendship and record through self-sync.</li>
+</ol>
+  </main>
+  <script src="assets/pages.js"></script>
+  <script src="assets/design.js"></script>
+</body>
+</html>
