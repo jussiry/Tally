@@ -120,6 +120,15 @@
       none takes over within a few seconds (<code>tests/app-update/run.mjs</code>).
     </p>
     <p>
+      While Tally runs in a browser tab, Settings offers "Install on home
+      screen" (<code>js/ui/app-install.js</code>). Chromium browsers fire
+      <code>beforeinstallprompt</code>, which the app keeps from start-up and
+      replays on that click to open the browser's own install dialog. Safari
+      and Firefox have no install API, so the click shows where that browser's
+      menu item is instead. On iOS, installing is also what enables
+      <a href="tip-5-os-notifications.html">push notifications</a>.
+    </p>
+    <p>
       <code>app/sw-crypto-entry.js</code> is the one place a real bundle is
       produced (an IIFE at <code>dist/sw-crypto.js</code>): the service worker is
       a classic worker that cannot import the app's ES modules, and it needs

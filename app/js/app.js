@@ -49,6 +49,7 @@ import { getSlideDirection, swapPage } from "./ui/page-transitions.js";
 import { getAppVersion } from "./version.js";
 import { initSwipeNavigation } from "./ui/swipe.js";
 import { registerServiceWorker, onUpdateChange } from "./ui/app-update.js";
+import "./ui/app-install.js"; // listens for beforeinstallprompt from app start
 import { showNotification } from "./ui/notifications.js";
 import { resyncPushSubscription } from "./push/push-subscribe.js";
 

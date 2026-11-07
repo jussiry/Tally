@@ -14,6 +14,13 @@ import { formatCurrency } from "../../js/ui/format.js";
 import { initCheckToggle } from "../components/check-toggle.js";
 import { showConfirmModal } from "../components/confirm-modal.js";
 import { isUpdateAvailable, applyUpdate } from "../../js/ui/app-update.js";
+import {
+  isRunningInstalled,
+  canPromptInstall,
+  promptInstall,
+  installInstructions,
+  onInstallChange,
+} from "../../js/ui/app-install.js";
 import { isSameRelayUrl, normalizeRelayUrl } from "../../js/utils/relay-url.js";
 import {
   PushState,
@@ -22,6 +29,37 @@ import {
   disablePush,
 } from "../../js/push/push-subscribe.js";
 import { RelayStatus } from "../../js/signaling/relay-status-registry.js";
+
+// "Install on home screen" — shown while Tally runs in a browser tab. Opens
+// the browser's install dialog where there is one (Chromium), otherwise a
+// dialog saying where this browser keeps its install menu item.
+const bindInstallBanner = (root) => {
+  const banner = root.querySelector('[data-bind="install-banner"]');
+  if (!banner) return;
+  const render = () => {
+    banner.hidden = isRunningInstalled();
+  };
+  render();
+  const unsubscribe = onInstallChange(() => {
+    if (!banner.isConnected) {
+      unsubscribe();
+      return;
+    }
+    render();
+  });
+  banner.querySelector('[data-action="install-app"]')?.addEventListener("click", async () => {
+    if (canPromptInstall()) {
+      await promptInstall();
+      return;
+    }
+    await showConfirmModal({
+      title: "Install Tally",
+      body: installInstructions(),
+      cancelLabel: "Got it",
+      showConfirm: false,
+    });
+  });
+};
 
 // Render the relay list inside the settings surface-box. Each row is cloned
 // from the <template data-template="relay-item"> in the page HTML. The main
@@ -433,6 +471,8 @@ export const bindSettings = (root, data, appVersion) => {
     const applyButton = updateBanner.querySelector('[data-action="apply-update"]');
     if (applyButton) applyButton.addEventListener("click", () => applyUpdate());
   }
+
+  bindInstallBanner(root);
 
   const versionEl = root.querySelector('[data-bind="app-version"]');
   if (versionEl && appVersion) {

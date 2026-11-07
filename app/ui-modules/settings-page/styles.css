@@ -490,3 +490,13 @@
   flex: 1;
   min-width: 0;
 }
+
+/* Install banner reuses the update banner's layout as a plain surface box. */
+.settings-install {
+  border: none;
+  background: var(--surface-background);
+}
+
+.settings-install .settings-update-button {
+  background: oklch(48% 0.14 120 / 0.25);
+}

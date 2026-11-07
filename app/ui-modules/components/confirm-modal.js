@@ -16,6 +16,9 @@ Pass `textInput: { label, placeholder }` to add an optional free-text field
 (e.g. a note sent along with the action). The promise then resolves with the
 trimmed text (possibly "") on confirm and null on cancel, instead of a boolean.
 
+Pass `showConfirm: false` for an info-only dialog: just the cancel button,
+labelled by `cancelLabel` (e.g. "Got it").
+
 The modal mounts to document.body, traps the focus on the cancel button by default, closes on Esc / backdrop click (treated as cancel), and resolves with a boolean indicating confirmation.
 @category ui
 */
@@ -43,7 +46,7 @@ const createElement = (tag, className, attrs = {}) => {
 /**
  * @param {{
  *   title?: string, body?: string, confirmLabel?: string, confirmButtonLabel?: string | null,
- *   cancelLabel?: string, holdMs?: number, variant?: string,
+ *   cancelLabel?: string, holdMs?: number, variant?: string, showConfirm?: boolean,
  *   textInput?: { label?: string, placeholder?: string } | null,
  * }} [options]
  */
@@ -56,6 +59,7 @@ export const showConfirmModal = ({
   holdMs = DEFAULT_HOLD_MS,
   variant = ConfirmVariant.DANGER,
   textInput = null,
+  showConfirm = true,
 } = {}) => {
   return new Promise((resolve) => {
     const backdrop = createElement("div", "confirm-modal-backdrop", {
@@ -112,7 +116,7 @@ export const showConfirmModal = ({
     confirmBtn.appendChild(confirmLabelEl);
 
     actions.appendChild(cancelBtn);
-    actions.appendChild(confirmBtn);
+    if (showConfirm) actions.appendChild(confirmBtn);
     dialog.appendChild(actions);
 
     let settled = false;
