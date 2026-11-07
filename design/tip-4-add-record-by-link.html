@@ -7,10 +7,10 @@
   <link rel="stylesheet" href="assets/design.css" />
 </head>
 <body>
-  <main class="page" data-status="proposal"
+  <main class="page" data-status="implemented"
     data-files="js/commands/offline-claim.js js/utils/claim-link.js js/peer/handlers.js js/peer/self-entry.js js/ledger.ts js/app.js ui-modules/subpage/send-link.js ui-modules/welcome-page/index.js">
 <h1>TIP-4: Add Record by Link</h1>
-<div class="table-scroll"><table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody><tr><td>Number</td><td>TIP-4</td></tr><tr><td>Title</td><td>Add Record by Link</td></tr><tr><td>Status</td><td>Draft (v1 built)</td></tr><tr><td>Author</td><td>Jussi Rytkönen</td></tr><tr><td>Created</td><td>2026-06-02</td></tr></tbody></table></div>
+<div class="table-scroll"><table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody><tr><td>Number</td><td>TIP-4</td></tr><tr><td>Title</td><td>Add Record by Link</td></tr><tr><td>Status</td><td>Implemented</td></tr><tr><td>Author</td><td>Jussi Rytkönen</td></tr><tr><td>Created</td><td>2026-06-02</td></tr></tbody></table></div>
 <hr />
 <h2>Summary</h2>
 <p>A user can <strong>invite</strong> someone who isn't on Tally yet as a friend, <strong>send</strong> them a record, or <strong>request</strong> one from them, with a link. The user shares the link any way they like — the phone's share sheet, a chat, a copied link — with their own words around it. Opening the link, on a new or an existing account, makes the two <a href="glossary.html#friend">friends</a> and, for a record sent or requested, adds the <a href="glossary.html#transaction">record</a>.</p>
@@ -29,7 +29,7 @@
 <p>Everything is in the URL fragment, which browsers don't send to the server, so the secret stays out of server logs. For a request, <code>a</code> and <code>m</code> are what the opener signs, and <code>c</code> names the request so the author's client can close it. For a record sent they only let the welcome screen say what is coming. An invitation has neither (<code>js/utils/claim-link.js</code>).</p>
 <hr />
 <h2>Author: creating a link</h2>
-<p><em>Record by link</em> is reached from Add a friend (opening on Friend), Send and Request ("Not on Tally yet?"). The user picks Friend, Send or Request, enters a name — plus the amount and a note for a record — and gets a link to share. The client writes a signed, <strong>self-addressed</strong> ledger entry (<code>js/peer/self-entry.js</code>), which reaches the author's other devices through self-sync and never anyone else:</p>
+<p><em>Share a link</em> is reached from Add a friend (opening on Friend), Send and Request ("Not on Tally yet?"). The user picks Friend, Send or Request, enters a name — plus the amount and a note for a record — and gets a link to share. The client writes a signed, <strong>self-addressed</strong> ledger entry (<code>js/peer/self-entry.js</code>), which reaches the author's other devices through self-sync and never anyone else:</p>
 <pre><code>offline_claim (from = to = author) {
   claim_id, direction: "friend" | "send" | "request", commitment: SHA-256(s), secret: s,
   amount_eur, note, recipient_name

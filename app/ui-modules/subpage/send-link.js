@@ -1,5 +1,5 @@
 /*
-Binds the "Record by link" subpage (TIP-4): invite someone who isn't on Tally
+Binds the "Share a link" subpage (TIP-4): invite someone who isn't on Tally
 yet as a friend, give them a record, or ask them for one, and share the link any way the user likes,
 with their own words. Lists the user's links still waiting, each with share,
 copy and withdraw. The commands live in js/commands/offline-claim.js; this
@@ -102,7 +102,7 @@ const bindClaimItem = (itemEl, claim) => {
  */
 export const bindSendLink = (root, data, initialDirection = ClaimDirection.SEND) => {
   const titleEl = root.querySelector('[data-bind="page-title"]');
-  if (titleEl) titleEl.textContent = "Record by link";
+  if (titleEl) titleEl.textContent = "Share a link";
 
   const formEl = root.querySelector('[data-form="send-link"]');
   const hintEl = root.querySelector('[data-bind="link-hint"]');

@@ -6,7 +6,6 @@
  */
 
 window.TIP_ORDER = [
-  "tip-4-add-record-by-link.html",
   "tip-7-routed-payments.html",
   "tip-2-circular-cancellation.html",
   "tip-1-user-merge.html",

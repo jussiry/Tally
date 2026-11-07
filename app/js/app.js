@@ -175,7 +175,7 @@ const renderTemplateIntoSlots = (root, slotName, html) => {
 const createSubpageRoute = (type, friendId = null, direction = null) => ({
   type,
   friendId,
-  // Record by link only: "send" or "request".
+  // Share a link only: "friend", "send" or "request".
   direction,
   mainPage: lastMainPage,
 });
@@ -434,7 +434,7 @@ const loadPage = async (route) => {
       const sendLinkHtml = await fetchTemplate(templatePaths.sendLink);
       renderSubpageContent(pageView, sendLinkHtml);
       bindSendLink(pageView, data, route.direction || undefined);
-      document.title = "Tally — Record by link";
+      document.title = "Tally — Share a link";
       setFallbackBackNavigation(pageView);
     } else if (route.type === Route.NOTIFICATIONS) {
       const notificationsHtml = await fetchTemplate(templatePaths.notifications);

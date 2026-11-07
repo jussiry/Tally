@@ -51,7 +51,7 @@ window.DESIGN_PAGES = [
     summary: "Use several relay servers at once, so no single relay is needed." },
   { group: "TIPs", href: "tip-3-relay-sharing.html", title: "TIP-3 Relay sharing (cont.)", status: "proposal",
     summary: "Friends share their relay lists, so you can pick ones popular among them." },
-  { group: "TIPs", href: "tip-4-add-record-by-link.html", title: "TIP-4 Add record by link", status: "proposal",
+  { group: "TIPs", href: "tip-4-add-record-by-link.html", title: "TIP-4 Add record by link", status: "implemented",
     summary: "Invite, send to or request from someone not yet on Tally with a link they open." },
   { group: "TIPs", href: "tip-5-os-notifications.html", title: "TIP-5 OS notifications", status: "implemented",
     summary: "End-to-end encrypted Web Push notifications." },
