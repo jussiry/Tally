@@ -90,7 +90,8 @@ const friendNotification = (text, friendId) => notification(text, friendId, `fri
 // open links comes from the person the link was for. We accept the friendship
 // (if it isn't already) with no prompt; for a record we owe, we also send it,
 // and an invitation is then used up.
-// For a request, their client sends the record once it sees our accept.
+// For a request, their client sends the record right behind the friend
+// request, so it doesn't depend on the device where they accepted coming back.
 // Records by link take their transaction id from the link, so a second device
 // doing the same is deduplicated, and the link closes once the record is in
 // the ledger (getOpenOfflineClaims).
@@ -158,11 +159,46 @@ const finaliseOfflineClaim = async (state, entry, claim, requesterName) => {
   return friendNotification(`${requesterName} claimed the ${amountText} you recorded`, claimantId);
 };
 
-// Requests accepted from this friend's link, paid now that they accepted us.
+// Requests accepted from this friend's link before records went out at once
+// (a self-addressed link_payment entry each), paid now that they accepted us.
+// Returns how many were sent.
 const sendPendingLinkPayments = async (state, friendId) => {
+  let sent = 0;
   for (const payment of getPendingLinkPayments(state.ledger, state.user.id, friendId)) {
-    await sendLinkRecord(state, friendId, payment);
+    if (await sendLinkRecord(state, friendId, payment)) sent += 1;
   }
+  return sent;
+};
+
+/**
+ * Sends the record for every accepted link request whose author is now an
+ * accepted friend. Any of this user's devices can do it once the link_payment
+ * entry reaches it through self-sync; the transaction id comes from the link,
+ * so two devices sending it count once. Returns how many were sent.
+ */
+export const sendDueLinkPayments = async (state) => {
+  let sent = 0;
+  for (const friend of state.user?.friends || []) {
+    if (!isAcceptedFriendshipStatus(friend.friendship_status)) continue;
+    sent += await sendPendingLinkPayments(state, friend.person_id);
+  }
+  return sent;
+};
+
+// The opener of a request link signs its record before the author has
+// accepted, so applying it to their own tally had to wait. Done now that the
+// friendship is accepted; routeOutboundEntry skips a record already applied.
+const applyOwnLinkRecords = (state, friendId) => {
+  state.ledger
+    .filter(
+      (entry) =>
+        entry.type === MessageType.TRANSACTION_CREATED &&
+        entry.from_user_id === state.user.id &&
+        entry.to_user_id === friendId &&
+        typeof entry.payload?.claim_id === "string"
+    )
+    .reverse()
+    .forEach((entry) => routeOutboundEntry(state, entry));
 };
 
 const applyInboundFriendRequest = async (state, entry) => {
@@ -264,6 +300,7 @@ const applyInboundFriendAccept = async (state, entry) => {
     friend.trust_credit_limit_eur = agreedLimit;
   }
 
+  applyOwnLinkRecords(state, entry.from_user_id);
   await sendPendingLinkPayments(state, entry.from_user_id);
   if (wasAccepted) {
     return null;

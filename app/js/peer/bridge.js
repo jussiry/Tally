@@ -47,6 +47,7 @@ import {
   reconcileFriendshipStatuses,
   routeInboundEntry,
   routeOutboundEntry,
+  sendDueLinkPayments,
 } from "./handlers.js";
 import {
   appendLedgerEntryFromMessage,
@@ -263,6 +264,17 @@ export const reconcileFriendshipsFromLedger = async () => {
   const state = await loadState();
   if (!hasUser(state)) return;
   if (reconcileFriendshipStatuses(state) > 0) {
+    await persistAndBuildView(state);
+  }
+};
+
+// Records for link requests this user accepted, whose author has accepted the
+// friendship by now (see sendDueLinkPayments). Run at startup and after each
+// sync, since the link_payment entry may reach this device after the accept.
+export const flushDueLinkPayments = async () => {
+  const state = await loadState();
+  if (!hasUser(state)) return;
+  if ((await sendDueLinkPayments(state)) > 0) {
     await persistAndBuildView(state);
   }
 };

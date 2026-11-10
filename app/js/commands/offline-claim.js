@@ -11,10 +11,11 @@ claim_id is in the ledger.
 The opener's client (claimFromLink) sends the author a friend request carrying
 the secret, and the author's client accepts at once (peer/handlers.js). For a
 record sent, the author's client then sends it. For a request, the opener has
-agreed to the amount; their client keeps a self-addressed link_payment entry
-and sends the record when the author's accept arrives, or at once if the two
-are already friends. A request is no promise, so nothing is owed until the
-opener signs that record.
+agreed to the amount, so their client signs the record and sends it right
+behind the friend request: the record must not wait on the device where the
+link was opened, which may be a browser never used again. The author's client
+handles messages in arrival order, so the friendship is accepted first. A
+request is no promise, so nothing is owed until the opener signs that record.
 @category command
 */
 
@@ -108,31 +109,32 @@ export const claimFromLink = async (parsed) => {
   const friend = getFriend(state, parsed.key);
   if (isDeactivatedFriendshipStatus(friend?.friendship_status)) return "unavailable";
 
-  if (parsed.isRequest) {
-    const payment = { claim_id: parsed.claimId, amount_eur: parsed.amount, note: parsed.note };
-    if (isAcceptedFriendshipStatus(friend?.friendship_status)) {
-      await sendLinkRecord(state, parsed.key, payment);
-      await persistAndBuildView(state);
-      return "sent";
-    }
-    await appendSelfLedgerEntry(state, MessageType.LINK_PAYMENT, { ...payment, friend_id: parsed.key });
+  const payment = parsed.isRequest
+    ? { claim_id: parsed.claimId, amount_eur: parsed.amount, note: parsed.note }
+    : null;
+  if (payment && isAcceptedFriendshipStatus(friend?.friendship_status)) {
+    await sendLinkRecord(state, parsed.key, payment);
+    await persistAndBuildView(state);
+    return "sent";
   }
 
   if (!friend) {
-    // Persist the link_payment first: createFriend loads its own copy of state.
-    await persistAndBuildView(state);
     await createFriend({
       friendId: parsed.key,
       name: parsed.senderName,
       relays: parsed.relays,
       claimProof: parsed.secret,
     });
-    return "sent";
+  } else {
+    // Already connected (or a request is pending): send the proof in a request
+    // of its own; the author's client handles it before any status checks.
+    await sendFriendRequestWithProof(state, parsed);
   }
-
-  // Already connected (or a request is pending): send the proof in a request
-  // of its own; the author's client handles it before any status checks.
-  await sendFriendRequestWithProof(state, parsed);
-  await persistAndBuildView(state);
+  if (payment) {
+    // Queued after the friend request, so it arrives after it. Our own tally
+    // shows it once the author's accept arrives (applyInboundFriendAccept).
+    await sendLinkRecord(await loadState(), parsed.key, payment);
+  }
+  await persistAndBuildView(await loadState());
   return "sent";
 };

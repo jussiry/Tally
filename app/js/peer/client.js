@@ -50,6 +50,7 @@ import {
   markPeerMessageReceived,
   reconcileFriendshipsFromLedger,
   runLedgerMigrationIfNeeded,
+  flushDueLinkPayments,
   updateLastSyncedAt,
 } from "./bridge.js";
 import { subscribeToDataChanges } from "../app-state.js";
@@ -362,6 +363,7 @@ const createRealtimeClient = () => {
     if (scope === SCOPE_SELF) {
       await applyOwnNameFromLedger();
     }
+    await flushDueLinkPayments();
 
     await syncRealtimeState();
   };
@@ -563,8 +565,7 @@ const createRealtimeClient = () => {
       });
     },
     onPeerEnvelopeFromServer: ({ envelope }) => {
-      const handle = () => handleServerDeliveredEnvelope(envelope);
-      const processing = (isSyncEnvelope(envelope) ? inSyncOrder(handle) : handle())
+      const processing = inArrivalOrder(() => handleServerDeliveredEnvelope(envelope))
         .catch(() => {})
         .finally(() => inflightServerEnvelopes.delete(processing));
       inflightServerEnvelopes.add(processing);
@@ -895,22 +896,26 @@ const createRealtimeClient = () => {
     await syncRealtimeState();
   };
 
-  // Sync messages are handled one at a time, in arrival order: a history comes
-  // in several sync_data parts, oldest first, and a later part may build on an
-  // earlier one (a record needs the friendship accepted before it). Their ids
-  // start with "sync_" (sendSyncMessage), which the outer envelope shows.
-  let syncChain = Promise.resolve();
-  const isSyncEnvelope = (message) => typeof message?.id === "string" && message.id.startsWith("sync_");
-  const inSyncOrder = (task) => {
-    const run = syncChain.then(task);
-    syncChain = run.catch(() => {});
+  // Messages are handled one at a time, in arrival order, whichever way they
+  // came (friend or own device, direct or through a relay). A later message
+  // may build on an earlier one: a history comes in several sync_data parts,
+  // oldest first, and a record sent right behind a friend request needs the
+  // friendship accepted first. Handled concurrently, the record's handler
+  // would read state before the request's handler had accepted it.
+  // Ping and pong skip the queue, so a slow message can't make a link look dead.
+  let arrivalChain = Promise.resolve();
+  const inArrivalOrder = (task) => {
+    const run = arrivalChain.then(task);
+    arrivalChain = run.catch(() => {});
     return run;
   };
+  const isLivenessMessage = (message) =>
+    message?.type === MessageType.PING || message?.type === MessageType.PONG;
 
   const handlePeerMessage = (peerKey, peerUserId, message, scope = SCOPE_FRIEND) =>
-    isSyncEnvelope(message)
-      ? inSyncOrder(() => handlePeerMessageNow(peerKey, peerUserId, message, scope))
-      : handlePeerMessageNow(peerKey, peerUserId, message, scope);
+    isLivenessMessage(message)
+      ? handlePeerMessageNow(peerKey, peerUserId, message, scope)
+      : inArrivalOrder(() => handlePeerMessageNow(peerKey, peerUserId, message, scope));
 
   const handlePeerMessageNow = async (peerKey, peerUserId, message, scope = SCOPE_FRIEND) => {
     if (!message || typeof message !== "object") {
@@ -1029,6 +1034,7 @@ const createRealtimeClient = () => {
   // visible to the signaling layer immediately.
   void runLedgerMigrationIfNeeded()
     .then(() => reconcileFriendshipsFromLedger())
+    .then(() => flushDueLinkPayments())
     .then(() => syncRealtimeState());
 
   const ping = (nameOrKey) => {

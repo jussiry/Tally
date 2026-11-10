@@ -43,15 +43,16 @@
   <li><strong>An account exists, invitation or record sent:</strong> it goes ahead at once; a record is added to that account.</li>
   <li><strong>An account exists, request:</strong> the user is asked first ("If you accept, you sign a record that you owe Alice €20"), since accepting is a promise.</li>
 </ul>
-<p>Then <code>claimFromLink</code> (<code>js/commands/offline-claim.js</code>) sends the author a <code>friend_request</code> whose payload carries <code>claim_proof: s</code>. If the two are already friends or a request is pending, the proof goes in a request of its own. For an accepted request, the opener's client also writes a self-addressed <code>link_payment</code> entry (<code>claim_id</code>, friend, amount, note) — or, when the two are already friends, sends the record straight away.</p>
+<p>Then <code>claimFromLink</code> (<code>js/commands/offline-claim.js</code>) sends the author a <code>friend_request</code> whose payload carries <code>claim_proof: s</code>. If the two are already friends or a request is pending, the proof goes in a request of its own. For an accepted request, the opener's client signs the record and sends it right behind the friend request — or alone, when the two are already friends. It must not wait for the author's accept: the link is often opened in a browser used once (a chat app's built-in browser, a login on someone else's device), and the accept may reach only the opener's usual device, which never saw the link. Each client handles incoming messages one at a time in arrival order (<code>js/peer/client.js</code>), so the author's client has accepted the friendship before the record arrives. The opener's own tally shows the record once the accept arrives (<code>applyInboundFriendAccept</code>).</p>
 <hr />
 <h2>Author's client: accepting</h2>
 <p>In <code>applyInboundFriendRequest</code> (<code>js/peer/handlers.js</code>), a request whose <code>SHA-256(claim_proof)</code> matches an open link is handled with no prompt: the friendship is accepted, if it isn't already.</p>
 <ul>
   <li><strong>Invitation:</strong> nothing more; the invitation is used up.</li>
   <li><strong>Record sent:</strong> the author's client sends the record.</li>
-  <li><strong>Request:</strong> nothing more. When the opener's client sees the accept (<code>applyInboundFriendAccept</code>), it sends the record for each open <code>link_payment</code> to that friend.</li>
+  <li><strong>Request:</strong> nothing more; the record is already on its way.</li>
 </ul>
+<p>Requests accepted before records went out at once left a self-addressed <code>link_payment</code> entry on the opener's device instead. Any of the opener's devices that holds one sends its record once the author is an accepted friend: when the accept arrives, after each sync and at startup (<code>sendDueLinkPayments</code>).</p>
 <p>Either way the record is an ordinary <code>transaction_created</code> with <code>transaction_id = "tx_" + claim_id</code> and the <code>claim_id</code>, so it passes the usual "accepted friends only" rule, closes the link, and is applied once even if two devices of the same user both send it. A deactivated friendship is left alone.</p>
 <hr />
 <h2>Leaked links</h2>
@@ -67,7 +68,7 @@
   <li><strong>Confirm claims by hand?</strong> A setting to approve each claim of a record sent before it goes out.</li>
   <li><strong>Expiry.</strong> Should links expire after N days, shortening the window a leaked link is useful?</li>
   <li><strong>Used links.</strong> Opening a link that was already used or withdrawn sends a request the author ignores, and the opener isn't told. The author's client could answer with a short "not available" message.</li>
-  <li><strong>Several devices of the opener.</strong> The link is opened on one device; the others learn of the friendship and record through self-sync.</li>
+  <li><strong>Several devices of the opener.</strong> The link is opened on one device; the others learn of the friendship from the author's accept and of the record through self-sync or the friend sync with the author.</li>
 </ol>
   </main>
   <script src="assets/pages.js"></script>

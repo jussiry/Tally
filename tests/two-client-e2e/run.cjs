@@ -66,6 +66,11 @@ const BUILT_IN_SCENARIOS = {
     "scenarios",
     "signer-new-device.cjs"
   ),
+  "link-request": path.join(
+    __dirname,
+    "scenarios",
+    "link-request.cjs"
+  ),
 };
 
 const parseArgs = (argv) => {
