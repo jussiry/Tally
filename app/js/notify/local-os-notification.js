@@ -13,6 +13,7 @@ so the two replace each other rather than stack.
 */
 
 import { getOsNotifyTypes } from "./notification-policy.js";
+import { reportError } from "../ui/error-report.js";
 
 export const showLocalOsNotification = async (state, entry, notification) => {
   if (!notification?.text || !entry?.type || !state?.user?.id) return;
@@ -32,6 +33,6 @@ export const showLocalOsNotification = async (state, entry, notification) => {
       data: { url: notification.hash ? `./#${notification.hash}` : "./" },
     });
   } catch (error) {
-    console.warn("Local OS notification failed:", error);
+    reportError("Couldn't show a notification", { detail: error, toast: false });
   }
 };

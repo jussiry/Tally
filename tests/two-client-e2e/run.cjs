@@ -61,6 +61,11 @@ const BUILT_IN_SCENARIOS = {
     "scenarios",
     "default-self-sync.cjs"
   ),
+  "signer-new-device": path.join(
+    __dirname,
+    "scenarios",
+    "signer-new-device.cjs"
+  ),
 };
 
 const parseArgs = (argv) => {

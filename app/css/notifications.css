@@ -29,6 +29,10 @@
   animation: notification-in 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
+.notification-toast--error {
+  background: oklch(52% 0.19 27);
+}
+
 .notification-toast--out {
   animation: notification-out 300ms ease-in both;
 }

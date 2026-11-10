@@ -38,13 +38,14 @@ const ensureContainer = () => {
   return containerEl;
 };
 
-/** @param {{ text?: string, hash?: string, friendId?: string }} [notification] */
-export const showNotification = ({ text, hash = "" } = {}) => {
+// `variant: "error"` shows the toast in red (js/ui/error-report.js).
+/** @param {{ text?: string, hash?: string, friendId?: string, variant?: string }} [notification] */
+export const showNotification = ({ text, hash = "", variant = "" } = {}) => {
   if (!text) return;
 
   const container = ensureContainer();
   const el = document.createElement("button");
-  el.className = "notification-toast";
+  el.className = variant === "error" ? "notification-toast notification-toast--error" : "notification-toast";
   el.type = "button";
   el.textContent = text;
 

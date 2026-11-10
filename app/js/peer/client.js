@@ -63,6 +63,7 @@ import {
   wrapPeerMessage,
 } from "./envelope.js";
 import { buildOsNotificationHint } from "../notify/notification-policy.js";
+import { reportError } from "../ui/error-report.js";
 import {
   getAllLedgerEntries,
   getLedgerEntriesForPeer,
@@ -89,6 +90,36 @@ const SELF_RELAY_PEER_KEY = "relay";
 // Relay-delivered sync messages arrive once per relay; remember recent ids so
 // each is handled once. Bounded because sync ids are never reused.
 const SEEN_RELAY_SYNC_IDS_LIMIT = 500;
+// The most entry JSON one sync_data message carries. A message is one NIP-44
+// ciphertext, whose plaintext may be at most 64 KiB, and a whole history
+// easily exceeds that, so the reply goes out in parts well under the limit
+// (also under the 64 KiB a WebRTC data channel message may be on some browsers).
+const SYNC_DATA_BATCH_BYTES = 32 * 1024;
+
+// Split entries, oldest first, into batches of at most `maxBytes` of JSON. An
+// entry larger than that on its own still goes, alone.
+export const batchSyncEntries = (entries, maxBytes = SYNC_DATA_BATCH_BYTES) => {
+  const byOrigin = (a, b) => {
+    const aTs = a?.originated_at || a?.timestamp || "";
+    const bTs = b?.originated_at || b?.timestamp || "";
+    return aTs < bTs ? -1 : aTs > bTs ? 1 : 0;
+  };
+  const batches = [];
+  let batch = [];
+  let size = 0;
+  for (const entry of [...entries].sort(byOrigin)) {
+    const entrySize = JSON.stringify(entry).length + 1;
+    if (batch.length > 0 && size + entrySize > maxBytes) {
+      batches.push(batch);
+      batch = [];
+      size = 0;
+    }
+    batch.push(entry);
+    size += entrySize;
+  }
+  if (batch.length > 0 || batches.length === 0) batches.push(batch);
+  return batches;
+};
 
 const logRealtimeEvent = (message) => {
   console.log(`[Realtime] ${message}`);
@@ -173,8 +204,9 @@ const createRealtimeClient = () => {
         mesh.sendPeerMessage(peerKey, envelope);
       }
     } catch (error) {
-      logRealtimeEvent(
-        `Failed to wrap sync message (${scope}/${type}): ${String(error?.message || error)}`
+      reportError(
+        scope === SCOPE_SELF ? "Couldn't sync with your other device" : "Couldn't send history to a friend's device",
+        { detail: `Failed to wrap sync message (${scope}/${type}): ${String(error?.message || error)}` }
       );
     }
   };
@@ -218,8 +250,9 @@ const createRealtimeClient = () => {
     );
     const myEntries = getScopeEntries(scope, peerUserId);
     const missing = myEntries.filter((entry) => !knownIds.has(entry.id));
+    const batches = batchSyncEntries(missing);
     logRealtimeEvent(
-      `Received sync_hello (${scope}), sending ${missing.length} missing of ${knownIds.size} known`
+      `Received sync_hello (${scope}), sending ${missing.length} missing of ${knownIds.size} known in ${batches.length} part(s)`
     );
     // Seed the broadcast cache so we don't immediately re-push these entries
     // again through the subscribeToDataChanges path.
@@ -228,13 +261,10 @@ const createRealtimeClient = () => {
         if (entry?.id) broadcastedLedgerIds.add(entry.id);
       });
     }
-    await sendSyncMessage(
-      peerKey,
-      { scope },
-      MessageType.SYNC_DATA,
-      { entries: missing },
-      peerUserId,
-    );
+    // Oldest first, in order: the receiver applies the parts one at a time.
+    for (const entries of batches) {
+      await sendSyncMessage(peerKey, { scope }, MessageType.SYNC_DATA, { entries }, peerUserId);
+    }
   };
 
   const handleSyncData = async (peerKey, payload, { scope, peerUserId }) => {
@@ -259,9 +289,9 @@ const createRealtimeClient = () => {
       // third-party history.
       const authorshipValid = await verifyLedgerEntryAuthorship(entry);
       if (!authorshipValid) {
-        logRealtimeEvent(
-          `Rejected entry with invalid authorship (${scope}, from ${entry?.from_user_id?.slice(0, 10)}…)`
-        );
+        reportError("Ignored a synced record with an invalid signature", {
+          detail: `Rejected entry with invalid authorship (${scope}, from ${entry?.from_user_id?.slice(0, 10)}…)`,
+        });
         continue;
       }
       if (entry.from_user_id === myId && entry.to_user_id === myId) {
@@ -533,7 +563,8 @@ const createRealtimeClient = () => {
       });
     },
     onPeerEnvelopeFromServer: ({ envelope }) => {
-      const processing = handleServerDeliveredEnvelope(envelope)
+      const handle = () => handleServerDeliveredEnvelope(envelope);
+      const processing = (isSyncEnvelope(envelope) ? inSyncOrder(handle) : handle())
         .catch(() => {})
         .finally(() => inflightServerEnvelopes.delete(processing));
       inflightServerEnvelopes.add(processing);
@@ -610,9 +641,9 @@ const createRealtimeClient = () => {
       try {
         envelope = await wrapPeerMessage(message, { keyProvider });
       } catch (error) {
-        logRealtimeEvent(
-          `Failed to wrap outgoing message ${message.id?.slice(0, 10)}…: ${String(error?.message || error)}`
-        );
+        reportError("Couldn't encrypt a message to a friend", {
+          detail: `Failed to wrap outgoing message ${message.id?.slice(0, 10)}…: ${String(error?.message || error)}`,
+        });
         continue;
       }
 
@@ -635,9 +666,10 @@ const createRealtimeClient = () => {
             JSON.stringify(hint)
           );
         } catch (error) {
-          logRealtimeEvent(
-            `Failed to encrypt push hint for ${message.to_user_id?.slice(0, 10)}…: ${String(error?.message || error)}`
-          );
+          reportError("Couldn't add a notification to a message", {
+            detail: `Failed to encrypt push hint for ${message.to_user_id?.slice(0, 10)}…: ${String(error?.message || error)}`,
+            toast: false,
+          });
         }
       }
 
@@ -709,7 +741,10 @@ const createRealtimeClient = () => {
       signalingClient.setPushReminders(encrypted);
       registeredRemindersKey = key;
     } catch (error) {
-      logRealtimeEvent(`Failed to register push reminders: ${String(error?.message || error)}`);
+      reportError("Couldn't set up recurring payment reminders", {
+        detail: `Failed to register push reminders: ${String(error?.message || error)}`,
+        toast: false,
+      });
     }
   };
 
@@ -810,9 +845,13 @@ const createRealtimeClient = () => {
         keyProvider: currentSnapshot.keyProvider,
       });
       const queued = signalingClient.queuePeerEnvelopeOnServer(envelope);
-      logRealtimeEvent(queued ? "Queued peer receipt on server" : "Peer receipt queue rejected by server");
+      if (queued) logRealtimeEvent("Queued peer receipt on server");
+      else reportError("A relay refused a delivery receipt", { detail: "Peer receipt queue rejected by server", toast: false });
     } catch (error) {
-      logRealtimeEvent(`Failed to wrap receipt for server: ${String(error?.message || error)}`);
+      reportError("Couldn't send a delivery receipt", {
+        detail: `Failed to wrap receipt for server: ${String(error?.message || error)}`,
+        toast: false,
+      });
     }
   };
 
@@ -856,7 +895,24 @@ const createRealtimeClient = () => {
     await syncRealtimeState();
   };
 
-  const handlePeerMessage = async (peerKey, peerUserId, message, scope = SCOPE_FRIEND) => {
+  // Sync messages are handled one at a time, in arrival order: a history comes
+  // in several sync_data parts, oldest first, and a later part may build on an
+  // earlier one (a record needs the friendship accepted before it). Their ids
+  // start with "sync_" (sendSyncMessage), which the outer envelope shows.
+  let syncChain = Promise.resolve();
+  const isSyncEnvelope = (message) => typeof message?.id === "string" && message.id.startsWith("sync_");
+  const inSyncOrder = (task) => {
+    const run = syncChain.then(task);
+    syncChain = run.catch(() => {});
+    return run;
+  };
+
+  const handlePeerMessage = (peerKey, peerUserId, message, scope = SCOPE_FRIEND) =>
+    isSyncEnvelope(message)
+      ? inSyncOrder(() => handlePeerMessageNow(peerKey, peerUserId, message, scope))
+      : handlePeerMessageNow(peerKey, peerUserId, message, scope);
+
+  const handlePeerMessageNow = async (peerKey, peerUserId, message, scope = SCOPE_FRIEND) => {
     if (!message || typeof message !== "object") {
       return;
     }
@@ -919,9 +975,9 @@ const createRealtimeClient = () => {
         expectedRecipientId: currentSnapshot.userId,
       });
     } catch (error) {
-      logRealtimeEvent(
-        `Failed to unwrap envelope from ${sourcePeerKey?.slice(0, 10)}…: ${String(error?.message || error)}`
-      );
+      reportError("Couldn't decrypt a message", {
+        detail: `Failed to unwrap envelope from ${sourcePeerKey?.slice(0, 10)}…: ${String(error?.message || error)}`,
+      });
       return null;
     }
   };

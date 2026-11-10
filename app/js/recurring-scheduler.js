@@ -18,6 +18,7 @@ the same transaction ids, which the tallies dedupe.
 
 import { sendDueRecurringPayments } from "./commands/recurring-payment.js";
 import { showNotification } from "./ui/notifications.js";
+import { reportError } from "./ui/error-report.js";
 
 const CHECK_INTERVAL_MS = 60_000;
 const LOCK_NAME = "tally-recurring-payments";
@@ -33,7 +34,7 @@ const runOnce = async () => {
       : await sendDueRecurringPayments();
     if (sent.length) announce(sent);
   } catch (error) {
-    console.warn("[recurring] run failed:", error);
+    reportError("Couldn't send due recurring payments", { detail: error });
   } finally {
     running = false;
   }

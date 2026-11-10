@@ -28,6 +28,7 @@ import { verifyTallyAuthorship } from "./peer/authorship.js";
 import { MessageType } from "./peer/messages.js";
 import { isValidSchedule, normalizeSchedule } from "./recurring.js";
 import { createId } from "./state-utils.js";
+import { reportError } from "./ui/error-report.js";
 
 // ---------------------------------------------------------------------------
 // Local appends
@@ -686,15 +687,12 @@ export const mergeSyncedLedgerEntries = async (
     if (transactionId && existingTransactionIds.has(transactionId)) continue;
     if (isDeletedHistoryEntry(state, normalized)) continue;
     if (!hasValidLedgerValues(normalized)) {
-      console.warn("[Ledger] Rejected synced entry with invalid values:", normalized.id);
+      reportError("Ignored a synced record with invalid values", { detail: normalized.id });
       continue;
     }
     const authorshipValid = await verifyLedgerEntryAuthorship(normalized);
     if (!authorshipValid) {
-      console.warn(
-        "[Ledger] Rejected synced entry with missing or invalid authorship:",
-        normalized.id
-      );
+      reportError("Ignored a synced record with an invalid signature", { detail: normalized.id });
       continue;
     }
     state.ledger.unshift(normalized);

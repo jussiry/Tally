@@ -49,6 +49,7 @@ import {
 import { asTrimmedString, createId } from "../state-utils.js";
 import { sha256HexOfString } from "../crypto/secp256k1.js";
 import { appendSelfLedgerEntry } from "./self-entry.js";
+import { reportError } from "../ui/error-report.js";
 import {
   FriendshipStatus,
   PENDING_CREDIT_LIMIT_LOWERED,
@@ -76,7 +77,10 @@ const serializePeerMessageData = (message) => {
 };
 
 const warnIllegalPeerEntry = (entry) => {
-  console.warn("[LedgerEntry] Illegal ledger entry:", serializePeerMessageData(entry));
+  reportError("Ignored a message that isn't allowed", {
+    detail: serializePeerMessageData(entry),
+    toast: false,
+  });
 };
 
 const notification = (text, friendId, hash) => ({ text, friendId, hash });
@@ -533,7 +537,7 @@ const applyInboundReactivationRequest = async (state, entry) => {
 
   const history = await verifyReactivationHistory(entry.payload?.history, requesterId, state.user.id);
   if (!history) {
-    console.warn("[LedgerEntry] Rejected reactivation request with unverifiable history:", entry.id);
+    reportError("Ignored a reactivation request whose history couldn't be verified", { detail: entry.id });
     return null;
   }
 

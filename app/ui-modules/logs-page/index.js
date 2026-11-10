@@ -17,6 +17,7 @@ import { isAnyRelayConnected } from "../../js/signaling/relay-status-registry.js
 import { initInfiniteList } from "../../js/ui/infinite-list.js";
 import { getOsNotifyTypes } from "../../js/notify/notification-policy.js";
 import { MessageType } from "../../js/peer/messages.js";
+import { getErrorLog } from "../../js/ui/error-report.js";
 import { describeSchedule } from "../../js/recurring.js";
 
 const formatEur = (amount) => {
@@ -198,7 +199,15 @@ export const bindLogs = (root, data) => {
     }
   });
 
-  initInfiniteList(listEl, entries, (entry) => {
+  // This device's errors (js/ui/error-report.js) sit among the ledger events,
+  // newest first like the ledger, shown in red.
+  const ERROR_TYPE = "local_error";
+  const errors = getErrorLog().map((error) => ({ ...error, type: ERROR_TYPE }));
+  const rows = [...entries, ...errors].sort((a, b) =>
+    a.timestamp < b.timestamp ? 1 : a.timestamp > b.timestamp ? -1 : 0
+  );
+
+  initInfiniteList(listEl, rows, (entry) => {
     const node = itemTemplate.content.firstElementChild.cloneNode(true);
     const timeEl = node.querySelector('[data-bind="time"]');
     const textEl = node.querySelector('[data-bind="text"]');
@@ -217,7 +226,18 @@ export const bindLogs = (root, data) => {
       node.classList.add("log-item--os-notify");
       node.title = "Also shown as an OS notification";
     }
-    if (textEl) {
+    if (entry.type === ERROR_TYPE) {
+      node.classList.add("log-item--error");
+      if (textEl) {
+        textEl.textContent = entry.text;
+        if (entry.detail) {
+          const detailEl = document.createElement("span");
+          detailEl.className = "log-detail";
+          detailEl.textContent = entry.detail;
+          textEl.appendChild(detailEl);
+        }
+      }
+    } else if (textEl) {
       textEl.innerHTML = formatMarkdownish(
         formatLedgerEntry(entry, myId, namesById, { previousName: previousNameByEntryId[entry.id] })
       );

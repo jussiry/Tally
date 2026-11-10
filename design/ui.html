@@ -81,6 +81,18 @@
       becomes a repainted screen — and how pages slide, scroll and route — is
       <a href="render-flow.html">Render flow</a>.
     </p>
+
+    <h2 data-files="js/ui/error-report.js ui-modules/logs-page/index.js">Errors</h2>
+    <p>
+      A failure the user should know about — a message that couldn't be
+      encrypted or decrypted, history that couldn't be sent, a synced record
+      that was rejected — goes through <code>reportError</code>. It logs with
+      <code>console.error</code>, adds a red row to the Logs page (tap shows the
+      technical detail), and shows a red toast that opens the Logs page; the
+      same text toasts at most once a minute, and minor failures skip the toast.
+      The error list is this device's own, kept in localStorage, never in the
+      ledger.
+    </p>
   </main>
 
   <script src="assets/pages.js"></script>
