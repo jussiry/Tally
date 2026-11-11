@@ -12,7 +12,6 @@ Shared instructions for any coding agent. Claude-specific notes live in CLAUDE.m
 > - **update** — bring the latest `main` into the current worktree branch: `git pull --ff-only`
 >   in the main checkout, then `git merge main` here. Uncommitted work may stay uncommitted;
 >   if git refuses because it touches the same files, ask whether to commit it first.
->   Resolve conflicts in favour of keeping both sides' intent, and ask when unsure.
 > - **deploy** — commit, merge into `main` (unless already in main), then push `main`.
 > - **push** — If in worktree, first ask whether the worktree branch should really be pushed.
 
